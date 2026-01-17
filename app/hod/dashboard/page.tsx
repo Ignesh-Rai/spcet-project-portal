@@ -1,0 +1,537 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { updateProject } from "@/lib/db/projects";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { User, BarChart3, FolderOpen, Clock, Search } from "lucide-react";
+
+interface Project {
+  id: string;
+  title: string;
+  abstract: string;
+  thumbnailUrl?: string;
+  visibility: "public" | "pending" | "rejected" | "draft";
+  department?: string;
+  dept?: string;
+  projectType?: string;
+  technologies?: string[];
+  students?: any[];
+  hallOfFame?: boolean;
+  year?: string | number;
+  academicYear?: string;
+  updatedAt?: any;
+}
+
+export default function HoDDashboard() {
+  const router = useRouter();
+
+  const [authChecked, setAuthChecked] = useState(false);
+  const [activeTab, setActiveTab] = useState("pending");
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Search and Pagination
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PROJECTS_PER_PAGE = 9;
+
+  // Analytics State
+  const [analytics, setAnalytics] = useState({
+    totalProjects: 0,
+    pendingCount: 0,
+    approvedCount: 0,
+    hallOfFameCount: 0,
+    projectsByType: {} as Record<string, number>,
+    recentActivity: [] as Project[]
+  });
+
+  /* ===============================
+     AUTH + ROLE PROTECTION (HoD)
+     =============================== */
+  const [userDept, setUserDept] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.replace("/hod/login");
+        return;
+      }
+
+      const token = await user.getIdTokenResult();
+      if (token.claims.role !== "hod") {
+        alert("Access denied. HoD only.");
+        router.replace("/");
+        return;
+      }
+
+      // Extract department from claims
+      const dept = token.claims.department as string;
+      if (!dept) {
+        alert("System Error: Department not assigned to this HoD account.");
+        router.replace("/");
+        return;
+      }
+
+      setUserDept(dept);
+      setAuthChecked(true);
+    });
+
+    return () => unsub();
+  }, [router]);
+
+  /* ===============================
+     Firestore Listener (HoD - Filtered by Dept)
+     =============================== */
+  useEffect(() => {
+    if (!authChecked || !userDept || !auth.currentUser) return;
+
+    let q;
+    // ... (rest of query logic)
+
+    if (activeTab === "hall-of-fame") {
+      q = query(
+        collection(db, "projects"),
+        where("department", "==", userDept),
+        where("hallOfFame", "==", true),
+        orderBy("createdAt", "desc")
+      );
+    } else if (activeTab === "approved") {
+      q = query(
+        collection(db, "projects"),
+        where("department", "==", userDept),
+        where("visibility", "==", "public"),
+        orderBy("createdAt", "desc")
+      );
+    } else {
+      q = query(
+        collection(db, "projects"),
+        where("department", "==", userDept),
+        where("visibility", "==", "pending"),
+        orderBy("createdAt", "desc")
+      );
+    }
+
+    const unsub = onSnapshot(q, (snap) => {
+      const items = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      } as Project));
+      setProjects(items);
+      setLoading(false);
+    }, (error) => {
+      if (error.code === "permission-denied") {
+        if (auth.currentUser) {
+          console.error("HoD projects listener error:", error);
+        }
+        setProjects([]);
+        setLoading(false);
+      } else {
+        console.error("HoD projects listener error:", error);
+      }
+    });
+
+    return () => unsub();
+  }, [activeTab, authChecked, userDept]);
+
+  /* ===============================
+     Actions
+     =============================== */
+  async function approveProject(projectId: string) {
+    await updateProject(projectId, { visibility: "public" });
+    setSelectedProject(null);
+  }
+
+  async function rejectProject(projectId: string) {
+    await updateProject(projectId, { visibility: "rejected" });
+    setSelectedProject(null);
+  }
+
+  async function addToHallOfFame(projectId: string) {
+    await updateProject(projectId, { hallOfFame: true });
+    setSelectedProject(null);
+  }
+
+  /* ===============================
+     Analytics Calculation (Filtered by HoD Dept)
+     =============================== */
+  useEffect(() => {
+    if (!authChecked || !userDept || !auth.currentUser) return
+
+    const q = query(
+      collection(db, "projects"),
+      where("department", "==", userDept)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const allProjects = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Project))
+
+        const stats = {
+          totalProjects: allProjects.length,
+          pendingCount: allProjects.filter((p: any) => p.visibility === 'pending').length,
+          approvedCount: allProjects.filter((p: any) => p.visibility === 'public').length,
+          hallOfFameCount: allProjects.filter((p: any) => p.hallOfFame).length,
+
+          projectsByType: allProjects.reduce((acc: Record<string, number>, p: Project) => {
+            const type = p.projectType || 'Unknown'
+            acc[type] = (acc[type] || 0) + 1
+            return acc
+          }, {}),
+
+          recentActivity: allProjects
+            .filter(p => p.visibility !== 'rejected' && p.visibility !== 'draft')
+            .sort((a: Project, b: Project) => {
+              const aTime = a.updatedAt?.toMillis?.() || 0
+              const bTime = b.updatedAt?.toMillis?.() || 0
+              return bTime - aTime
+            })
+            .slice(0, 5)
+        }
+
+        setAnalytics(stats)
+      },
+      (error) => {
+        if (error.code === "permission-denied") {
+          if (auth.currentUser) {
+            console.error("Analytics listener error:", error);
+          }
+          setAnalytics({
+            totalProjects: 0,
+            pendingCount: 0,
+            approvedCount: 0,
+            hallOfFameCount: 0,
+            projectsByType: {},
+            recentActivity: []
+          });
+        } else {
+          console.error("Analytics listener error:", error);
+        }
+      }
+    )
+
+    return () => unsubscribe()
+  }, [authChecked, userDept, auth.currentUser])
+
+  /* ===============================
+     Filter and Pagination Logic
+     =============================== */
+  const filteredProjects = projects.filter(p =>
+    p.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const paginatedProjects = filteredProjects.slice(
+    (currentPage - 1) * PROJECTS_PER_PAGE,
+    currentPage * PROJECTS_PER_PAGE
+  );
+
+  const totalPages = Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE);
+
+  // Reset to page 1 when changing tabs or search
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
+
+  /* ===============================
+     AUTH LOADING GATE
+     =============================== */
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Checking access...</p>
+      </div>
+    );
+  }
+
+  /* ===============================
+     UI
+     =============================== */
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-800 p-8">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-blue-700 flex items-center gap-3">
+            <User className="w-8 h-8 text-blue-600" /> HoD Dashboard {userDept && `(${userDept})`}
+          </h1>
+          <p className="text-gray-600 mt-1">Project oversight and management for {userDept || 'your'} department</p>
+        </div>
+
+
+      </div>
+
+      {/* Analytics Overview */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <StatCard label="Total Projects" value={analytics.totalProjects} color="blue" />
+        <StatCard label="Pending" value={analytics.pendingCount} color="yellow" />
+        <StatCard label="Approved" value={analytics.approvedCount} color="green" />
+        <StatCard label="Hall of Fame" value={analytics.hallOfFameCount} color="purple" />
+      </div>
+
+      {/* Type Breakdown & Recent Activity */}
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+          <h3 className="font-semibold text-lg mb-4 text-gray-800 flex items-center gap-2">
+            <FolderOpen className="w-5 h-5 text-gray-500" /> Projects by Type
+          </h3>
+          {Object.entries(analytics.projectsByType).length > 0 ? (
+            <div className="space-y-4">
+              {Object.entries(analytics.projectsByType)
+                .sort(([, a], [, b]) => b - a)
+                .map(([type, count]) => (
+                  <div key={type} className="group">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-gray-700 font-medium">{type}</span>
+                      <span className="font-bold text-blue-600">{count}</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full transition-all"
+                        style={{ width: `${(count / analytics.totalProjects) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">No Data Available</p>
+          )}
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+          <h3 className="font-semibold text-lg mb-4 text-gray-800 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-gray-500" /> Recently Published
+          </h3>
+          {analytics.recentActivity.length > 0 ? (
+            <div className="space-y-3">
+              {analytics.recentActivity.map((p: any) => (
+                <div key={p.id} className="border-b pb-3 last:border-b-0">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-gray-800">{p.title || 'Untitled'}</p>
+                      <p className="text-sm text-gray-600">
+                        {p.projectType || 'N/A'}
+                      </p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${p.visibility === 'public' ? 'bg-green-100 text-green-700' :
+                      p.visibility === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                      {p.visibility?.toUpperCase() || 'DRAFT'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-700 text-sm">No recent activity</p>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-4 mb-6 overflow-x-auto no-scrollbar">
+        {[
+          { id: "pending", label: "Pending" },
+          { id: "approved", label: "Approved" },
+          { id: "hall-of-fame", label: "Hall Of Fame" }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-lg font-medium capitalize transition ${activeTab === tab.id
+              ? "bg-blue-600 text-white"
+              : "bg-gray-200 hover:bg-gray-300"
+              }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-8 flex gap-2 w-full">
+        <input
+          type="text"
+          placeholder="Search by project title..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400 bg-white shadow-sm"
+        />
+        <button className="bg-slate-700 text-white p-3 rounded-lg hover:bg-slate-800 transition shadow-sm flex items-center justify-center">
+          <Search size={24} />
+        </button>
+      </div>
+
+      {/* Project List */}
+      {loading ? (
+        <p>Loading projects...</p>
+      ) : filteredProjects.length === 0 ? (
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center text-gray-500">
+          {searchQuery ? `No projects match "${searchQuery}"` : "No projects found."}
+        </div>
+      ) : (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedProjects.map((project) => (
+              <div
+                key={project.id}
+                className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 hover:shadow-md transition"
+              >
+                <h3 className="text-lg font-semibold mb-2 text-gray-900">
+                  {project.title}
+                </h3>
+
+                <p className="text-sm text-gray-700 mb-1">
+                  <strong>Type:</strong> {project.projectType || "N/A"}
+                </p>
+
+                <p className="text-sm text-gray-700 mb-1">
+                  <strong>Department:</strong> {project.dept || project.department || "N/A"}
+                </p>
+
+                <p className="text-sm text-gray-700 mb-2">
+                  <strong>Year:</strong> {project.year || project.academicYear || "—"}
+                </p>
+
+                <span
+                  className={`inline-block text-xs font-medium px-3 py-1 rounded-full mb-3 ${project.visibility === "public"
+                    ? "bg-green-100 text-green-700"
+                    : project.visibility === "pending"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : project.visibility === "rejected"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-purple-100 text-purple-700"
+                    }`}
+                >
+                  {project.visibility?.toUpperCase()}
+                </span>
+
+                <Link
+                  href={`/hod/projects/${project.id}`}
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 block text-center transition shadow-sm"
+                >
+                  Review Project
+                </Link>
+              </div>
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-2 mt-6">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
+              >
+                Previous
+              </button>
+              <span className="px-4 py-2 text-gray-700">Page {currentPage} of {totalPages}</span>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Review Modal */}
+      {selectedProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+            <button
+              onClick={() => setSelectedProject(null)}
+              className="absolute top-3 right-4 text-2xl"
+            >
+              &times;
+            </button>
+
+            <h2 className="text-2xl font-bold mb-4 text-blue-700">
+              {selectedProject.title}
+            </h2>
+
+            <p className="text-gray-700 mb-2">
+              <strong>Type:</strong> {selectedProject.projectType}
+            </p>
+            <p className="text-gray-700 mb-2">
+              <strong>Department:</strong> {selectedProject.department}
+            </p>
+            <p className="text-gray-700 mb-2">
+              <strong>Year:</strong> {selectedProject.year}
+            </p>
+            <p className="text-gray-700 mb-3">
+              <strong>Technologies:</strong>{" "}
+              {selectedProject.technologies?.join(", ")}
+            </p>
+
+            <p className="text-gray-800 mb-6">
+              {selectedProject.abstract}
+            </p>
+
+            {activeTab === "pending" && (
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => approveProject(selectedProject.id)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg"
+                >
+                  ✅ Approve
+                </button>
+                <button
+                  onClick={() => rejectProject(selectedProject.id)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg"
+                >
+                  ❌ Reject
+                </button>
+              </div>
+            )}
+
+            {activeTab === "approved" && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => addToHallOfFame(selectedProject.id)}
+                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg"
+                >
+                  ⭐ Add to Hall of Fame
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===============================
+   Helper Component: StatCard
+   =============================== */
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  const colorClasses: Record<string, string> = {
+    blue: "bg-blue-100 text-blue-700 border-blue-200",
+    yellow: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    green: "bg-green-100 text-green-700 border-green-200",
+    red: "bg-red-100 text-red-700 border-red-200",
+    purple: "bg-purple-100 text-purple-700 border-purple-200"
+  }
+
+  return (
+    <div className={`p-4 rounded-lg border ${colorClasses[color] || colorClasses.blue}`}>
+      <p className="text-sm opacity-80 font-medium">{label}</p>
+      <p className="text-3xl font-bold mt-1">{value}</p>
+    </div>
+  )
+}

@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Firebase secrets
+serviceAccountKey.json
+service-account.json
+# Logs
+firebase-debug.log
+build_log.txt
+# Others
+.gemini/
+.antigravity/
+.agent/
+setRole.js
+set-claim.js
+*.log

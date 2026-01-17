@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Projects collection
+    match /projects/{projectId} {
+      // Allow reading based on role and visibility:
+      // - Admin can read ALL projects
+      // - HoD can read ALL projects (for cross-dept analytics if needed, but current dashboard filters)
+      // - Faculty can read their own projects + public ones
+      // - Anyone can read public projects
+      allow read: if resource.data.visibility == 'public'
+                  || resource.data.get('hallOfFame', false) == true
+                  || (request.auth != null && request.auth.token.role == 'admin')
+                  || (request.auth != null && request.auth.token.role == 'hod')
+                  || (request.auth != null && request.auth.token.role == 'faculty' && request.auth.uid == resource.data.facultyId);
+
+      // Create/update/delete allowed to authenticated faculty, HoD, or admin
+      allow create, update, delete: if request.auth != null
+        && (request.auth.token.role == 'faculty' || request.auth.token.role == 'hod' || request.auth.token.role == 'admin');
+    }
+
+    // Users: public read, user can create/update own profile
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && (request.auth.uid == userId || request.auth.token.admin == true);
+    }
+
+    // Default: deny all other
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

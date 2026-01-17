@@ -24,3 +24,80 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* === Global Input Styling Fix === */
+input,
+select,
+textarea {
+  background-color: #f9fafb;
+  /* light gray (visible on white background) */
+  color: #1f2937;
+  /* dark gray text */
+  border: 1px solid #d1d5db;
+  /* gray-300 border */
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #4b5563;
+  /* placeholder gray-600 */
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  /* blue-600 focus */
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+  transform: scale(1.03);
+  opacity: 0.95;
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
