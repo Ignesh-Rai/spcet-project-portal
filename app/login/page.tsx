@@ -31,9 +31,14 @@ export default function UnifiedLogin() {
             const claims = idTokenResult.claims || {};
 
             if (claims.role === role) {
-                // Set session cookie for middleware (no max-age = session cookie)
+                // Set session cookie via Server Action/API for reliability
                 const token = await cred.user.getIdToken();
-                document.cookie = `__session=${token}; path=/; SameSite=Lax`;
+
+                await fetch("/api/auth/session", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ token }),
+                });
 
                 // Redirect based on role
                 router.push(`/${role}/dashboard`);

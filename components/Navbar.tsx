@@ -46,11 +46,12 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      // 1. Clear the session cookie immediately
-      document.cookie = "__session=; path=/; max-age=0"
+      // 1. Clear session cookie via API
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
 
       // 2. Start navigation away from protected pages
-      // This helps prevent permission-denied errors on components that are still mounted
       router.push("/")
 
       // 3. Actually sign out from Firebase

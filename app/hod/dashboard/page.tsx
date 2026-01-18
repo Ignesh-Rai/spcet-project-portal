@@ -72,7 +72,7 @@ export default function HoDDashboard() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        router.replace("/hod/login");
+        router.replace("/login");
         return;
       }
 

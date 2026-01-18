@@ -68,7 +68,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                router.replace("/admin/login");
+                router.replace("/login");
                 return;
             }
 
