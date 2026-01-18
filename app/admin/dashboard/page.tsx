@@ -111,7 +111,7 @@ export default function AdminDashboard() {
             // Update Analytics based on the filtered set
             const stats = {
                 totalProjects: items.length,
-                approvedCount: items.filter((p: any) => p.visibility === 'public').length,
+                approvedCount: items.filter((p: any) => p.visibility === 'public' && !p.hallOfFame).length,
                 hallOfFameCount: items.filter((p: any) => p.hallOfFame).length,
 
                 projectsByDept: items.reduce((acc: Record<string, number>, p: Project) => {

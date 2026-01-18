@@ -131,10 +131,16 @@ export default function HoDDashboard() {
     }
 
     const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map((d) => ({
+      let items = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       } as Project));
+
+      // Filter out Hall of Fame from Approved list if activeTab is approved
+      if (activeTab === "approved") {
+        items = items.filter(p => !p.hallOfFame);
+      }
+
       setProjects(items);
       setLoading(false);
     }, (error) => {
@@ -184,12 +190,14 @@ export default function HoDDashboard() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const allProjects = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Project))
+        const allProjects = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() } as Project))
+          .filter(p => p.visibility !== 'draft');
 
         const stats = {
           totalProjects: allProjects.length,
           pendingCount: allProjects.filter((p: any) => p.visibility === 'pending').length,
-          approvedCount: allProjects.filter((p: any) => p.visibility === 'public').length,
+          approvedCount: allProjects.filter((p: any) => p.visibility === 'public' && !p.hallOfFame).length,
           hallOfFameCount: allProjects.filter((p: any) => p.hallOfFame).length,
 
           projectsByType: allProjects.reduce((acc: Record<string, number>, p: Project) => {
