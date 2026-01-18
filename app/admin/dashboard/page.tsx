@@ -11,7 +11,8 @@ import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck, BarChart3, FolderOpen, Clock, Search, ExternalLink } from "lucide-react";
+import { ShieldCheck, BarChart3, FolderOpen, Clock, Search, ExternalLink, UserPlus, Plus, X } from "lucide-react";
+import { createSecondaryUser } from "@/lib/admin-auth";
 
 interface Project {
     id: string;
@@ -37,6 +38,14 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState("all");
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showUserModal, setShowUserModal] = useState(false);
+
+    // User Management State
+    const [newUserEmail, setNewUserEmail] = useState("");
+    const [newUserPassword, setNewUserPassword] = useState("");
+    const [newUserDept, setNewUserDept] = useState("CSE");
+    const [userCreationLoading, setUserCreationLoading] = useState(false);
+    const [userMessage, setUserMessage] = useState({ text: "", type: "" });
 
     // Search and Pagination
     const [searchQuery, setSearchQuery] = useState("");
@@ -164,6 +173,35 @@ export default function AdminDashboard() {
         setCurrentPage(1);
     }, [activeTab, searchQuery]);
 
+    const handleCreateHoD = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setUserCreationLoading(true);
+        setUserMessage({ text: "", type: "" });
+
+        try {
+            // 1. Create User in Auth (Secondary App)
+            const uid = await createSecondaryUser(newUserEmail, newUserPassword);
+
+            // 2. Set Custom Claims via API
+            const response = await fetch("/api/admin/set-role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uid, role: "hod", department: newUserDept }),
+            });
+
+            if (!response.ok) throw new Error("Failed to assign role");
+
+            setUserMessage({ text: "✅ HoD Account Created Successfully!", type: "success" });
+            setNewUserEmail("");
+            setNewUserPassword("");
+        } catch (error: any) {
+            console.error("User creation error:", error);
+            setUserMessage({ text: "❌ " + (error.message || "Failed to create user"), type: "error" });
+        } finally {
+            setUserCreationLoading(false);
+        }
+    };
+
     if (!authChecked) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -177,13 +215,22 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-800 p-8">
-            {/* Header */}
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-blue-700 flex items-center gap-3">
                         <ShieldCheck className="w-8 h-8 text-blue-600" /> Admin Dashboard
                     </h1>
                     <p className="text-gray-600 mt-1">Overall Projects Insights & Analytics</p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setShowUserModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-50 transition shadow-sm font-semibold"
+                    >
+                        <UserPlus size={18} />
+                        <span>HoD Management</span>
+                    </button>
                 </div>
             </div>
 
@@ -314,7 +361,6 @@ export default function AdminDashboard() {
                         <Search size={24} />
                     </button>
                 </div>
-
                 {loading ? (
                     <div className="flex justify-center items-center py-20">
                         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -394,9 +440,108 @@ export default function AdminDashboard() {
                             </div>
                         )}
                     </>
-                )}
-            </div>
-        </div>
+                )
+                }
+            </div >
+
+            {/* HoD Creation Modal */}
+            {showUserModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-8 relative animate-in fade-in zoom-in duration-200">
+                        <button
+                            onClick={() => {
+                                setShowUserModal(false);
+                                setUserMessage({ text: "", type: "" });
+                            }}
+                            className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                        >
+                            <X size={24} />
+                        </button>
+
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                                <UserPlus size={24} />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">HoD Management</h2>
+                                <p className="text-sm text-gray-500">Create new Head of Department account</p>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleCreateHoD} className="space-y-6">
+                            {userMessage.text && (
+                                <div className={`p-4 rounded-xl text-sm font-medium ${userMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                                    }`}>
+                                    {userMessage.text}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Email ID</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        placeholder="hod@example.com"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                                        value={newUserEmail}
+                                        onChange={(e) => setNewUserEmail(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Password</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="Enter Password"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                                        value={newUserPassword}
+                                        onChange={(e) => setNewUserPassword(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Department</label>
+                                    <select
+                                        required
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                                        value={newUserDept}
+                                        onChange={(e) => setNewUserDept(e.target.value)}
+                                    >
+                                        <option value="CSE">CSE</option>
+                                        <option value="IT">IT</option>
+                                        <option value="ECE">ECE</option>
+                                        <option value="EEE">EEE</option>
+                                        <option value="MECH">MECH</option>
+                                        <option value="CIVIL">CIVIL</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={userCreationLoading}
+                                className={`w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 shadow-lg ${userCreationLoading
+                                    ? "bg-blue-400 cursor-not-allowed"
+                                    : "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
+                                    } flex items-center justify-center gap-2`}
+                            >
+                                {userCreationLoading ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        <span>Creating...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserPlus size={20} />
+                                        <span>Create HoD Account</span>
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div >
     );
 }
 

@@ -13,7 +13,8 @@ import { updateProject } from "@/lib/db/projects";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, BarChart3, FolderOpen, Clock, Search } from "lucide-react";
+import { User, BarChart3, FolderOpen, Clock, Search, UserPlus, Plus, X } from "lucide-react";
+import { createSecondaryUser } from "@/lib/admin-auth";
 
 interface Project {
   id: string;
@@ -40,6 +41,13 @@ export default function HoDDashboard() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showFacultyModal, setShowFacultyModal] = useState(false);
+
+  // Faculty Management State
+  const [newFacultyEmail, setNewFacultyEmail] = useState("");
+  const [newFacultyPassword, setNewFacultyPassword] = useState("");
+  const [facultyCreationLoading, setFacultyCreationLoading] = useState(false);
+  const [facultyMessage, setFacultyMessage] = useState({ text: "", type: "" });
 
   // Search and Pagination
   const [searchQuery, setSearchQuery] = useState("");
@@ -243,6 +251,37 @@ export default function HoDDashboard() {
     setCurrentPage(1);
   }, [activeTab, searchQuery]);
 
+  const handleCreateFaculty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFacultyCreationLoading(true);
+    setFacultyMessage({ text: "", type: "" });
+
+    try {
+      if (!userDept) throw new Error("Department not found");
+
+      // 1. Create User in Auth (Secondary App)
+      const uid = await createSecondaryUser(newFacultyEmail, newFacultyPassword);
+
+      // 2. Set Custom Claims via API
+      const response = await fetch("/api/admin/set-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, role: "faculty", department: userDept }),
+      });
+
+      if (!response.ok) throw new Error("Failed to assign role");
+
+      setFacultyMessage({ text: "✅ Faculty Account Created Successfully!", type: "success" });
+      setNewFacultyEmail("");
+      setNewFacultyPassword("");
+    } catch (error: any) {
+      console.error("Faculty creation error:", error);
+      setFacultyMessage({ text: "❌ " + (error.message || "Failed to create user"), type: "error" });
+    } finally {
+      setFacultyCreationLoading(false);
+    }
+  };
+
   /* ===============================
      AUTH LOADING GATE
      =============================== */
@@ -268,7 +307,15 @@ export default function HoDDashboard() {
           <p className="text-gray-600 mt-1">Project oversight and management for {userDept || 'your'} department</p>
         </div>
 
-
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowFacultyModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-50 transition shadow-sm font-semibold"
+          >
+            <UserPlus size={18} />
+            <span>Faculty Management</span>
+          </button>
+        </div>
       </div>
 
       {/* Analytics Overview */}
@@ -375,144 +422,168 @@ export default function HoDDashboard() {
       </div>
 
       {/* Project List */}
-      {loading ? (
-        <p>Loading projects...</p>
-      ) : filteredProjects.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center text-gray-500">
-          {searchQuery ? `No projects match "${searchQuery}"` : "No projects found."}
-        </div>
-      ) : (
-        <>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginatedProjects.map((project) => (
-              <div
-                key={project.id}
-                className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 hover:shadow-md transition"
-              >
-                <h3 className="text-lg font-semibold mb-2 text-gray-900">
-                  {project.title}
-                </h3>
-
-                <p className="text-sm text-gray-700 mb-1">
-                  <strong>Type:</strong> {project.projectType || "N/A"}
-                </p>
-
-                <p className="text-sm text-gray-700 mb-1">
-                  <strong>Department:</strong> {project.dept || project.department || "N/A"}
-                </p>
-
-                <p className="text-sm text-gray-700 mb-2">
-                  <strong>Year:</strong> {project.year || project.academicYear || "—"}
-                </p>
-
-                <span
-                  className={`inline-block text-xs font-medium px-3 py-1 rounded-full mb-3 ${project.visibility === "public"
-                    ? "bg-green-100 text-green-700"
-                    : project.visibility === "pending"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : project.visibility === "rejected"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-purple-100 text-purple-700"
-                    }`}
-                >
-                  {project.visibility?.toUpperCase()}
-                </span>
-
-                <Link
-                  href={`/hod/projects/${project.id}`}
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 block text-center transition shadow-sm"
-                >
-                  Review Project
-                </Link>
-              </div>
-            ))}
+      {
+        loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
           </div>
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
-              >
-                Previous
-              </button>
-              <span className="px-4 py-2 text-gray-700">Page {currentPage} of {totalPages}</span>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
-                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
-              >
-                Next
-              </button>
+        ) : filteredProjects.length === 0 ? (
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center text-gray-500">
+            {searchQuery ? `No projects match "${searchQuery}"` : "No projects found."}
+          </div>
+        ) : (
+          <>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedProjects.map((project) => (
+                <div
+                  key={project.id}
+                  className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 hover:shadow-md transition"
+                >
+                  <h3 className="text-lg font-semibold mb-2 text-gray-900 line-clamp-1">
+                    {project.title}
+                  </h3>
+
+                  <p className="text-sm text-gray-700 mb-1">
+                    <strong>Type:</strong> {project.projectType || "N/A"}
+                  </p>
+
+                  <p className="text-sm text-gray-700 mb-1">
+                    <strong>Department:</strong> {project.dept || project.department || "N/A"}
+                  </p>
+
+                  <p className="text-sm text-gray-700 mb-2">
+                    <strong>Year:</strong> {project.year || project.academicYear || "—"}
+                  </p>
+
+                  <span
+                    className={`inline-block text-xs font-medium px-3 py-1 rounded-full mb-3 ${project.visibility === "public"
+                      ? "bg-green-100 text-green-700"
+                      : project.visibility === "pending"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : project.visibility === "rejected"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-purple-100 text-purple-700"
+                      }`}
+                  >
+                    {project.visibility?.toUpperCase()}
+                  </span>
+
+                  <Link
+                    href={`/hod/projects/${project.id}`}
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 block text-center transition shadow-sm"
+                  >
+                    Review Project
+                  </Link>
+                </div>
+              ))}
             </div>
-          )}
-        </>
-      )}
-
-      {/* Review Modal */}
-      {selectedProject && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
-            <button
-              onClick={() => setSelectedProject(null)}
-              className="absolute top-3 right-4 text-2xl"
-            >
-              &times;
-            </button>
-
-            <h2 className="text-2xl font-bold mb-4 text-blue-700">
-              {selectedProject.title}
-            </h2>
-
-            <p className="text-gray-700 mb-2">
-              <strong>Type:</strong> {selectedProject.projectType}
-            </p>
-            <p className="text-gray-700 mb-2">
-              <strong>Department:</strong> {selectedProject.department}
-            </p>
-            <p className="text-gray-700 mb-2">
-              <strong>Year:</strong> {selectedProject.year}
-            </p>
-            <p className="text-gray-700 mb-3">
-              <strong>Technologies:</strong>{" "}
-              {selectedProject.technologies?.join(", ")}
-            </p>
-
-            <p className="text-gray-800 mb-6">
-              {selectedProject.abstract}
-            </p>
-
-            {activeTab === "pending" && (
-              <div className="flex justify-end gap-3">
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-2 mt-6">
                 <button
-                  onClick={() => approveProject(selectedProject.id)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
                 >
-                  ✅ Approve
+                  Previous
                 </button>
+                <span className="px-4 py-2 text-gray-700">Page {currentPage} of {totalPages}</span>
                 <button
-                  onClick={() => rejectProject(selectedProject.id)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
                 >
-                  ❌ Reject
+                  Next
                 </button>
               </div>
             )}
+          </>
+        )
+      }
 
-            {activeTab === "approved" && (
-              <div className="flex justify-end">
-                <button
-                  onClick={() => addToHallOfFame(selectedProject.id)}
-                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg"
-                >
-                  ⭐ Add to Hall of Fame
-                </button>
+      {/* Faculty Management Modal */}
+      {
+        showFacultyModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-8 relative animate-in fade-in zoom-in duration-200">
+              <button
+                onClick={() => {
+                  setShowFacultyModal(false);
+                  setFacultyMessage({ text: "", type: "" });
+                }}
+                className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                  <UserPlus size={24} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Faculty Management</h2>
+                  <p className="text-sm text-gray-500">Create new faculty account for {userDept}</p>
+                </div>
               </div>
-            )}
+
+              <form onSubmit={handleCreateFaculty} className="space-y-6">
+                {facultyMessage.text && (
+                  <div className={`p-4 rounded-xl text-sm font-medium ${facultyMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                    }`}>
+                    {facultyMessage.text}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Email ID</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="faculty@example.com"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                      value={newFacultyEmail}
+                      onChange={(e) => setNewFacultyEmail(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Password</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter Temporary Password"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                      value={newFacultyPassword}
+                      onChange={(e) => setNewFacultyPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={facultyCreationLoading}
+                  className={`w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 shadow-lg ${facultyCreationLoading
+                    ? "bg-blue-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
+                    } flex items-center justify-center gap-2`}
+                >
+                  {facultyCreationLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={20} />
+                      <span>Create Faculty Account</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
 

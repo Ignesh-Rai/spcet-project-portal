@@ -40,9 +40,7 @@ export default function Navbar() {
     ...(role === "hod" ? [{ name: "Dashboard", path: "/hod/dashboard" }] : []),
     ...(role === "admin" ? [{ name: "Dashboard", path: "/admin/dashboard" }] : []),
     ...(user ? [] : [
-      { name: "Faculty Login", path: "/faculty/login" },
-      { name: "HoD Login", path: "/hod/login" },
-      { name: "Admin Login", path: "/admin/login" }
+      { name: "Login", path: "/login" }
     ])
   ]
 
