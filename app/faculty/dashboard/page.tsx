@@ -265,7 +265,7 @@ export default function FacultyDashboard() {
 
   function ProjectCard({ p, children }: { p: Project; children: React.ReactNode }) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
+      <div className="bg-white rounded-xl border border-blue-300 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
         <div className="p-6 flex flex-col flex-1">
           <div className="flex justify-between items-start mb-2 gap-2">
             <Link href={`/faculty/projects/${p.id}`} className="group/title flex-1">
