@@ -100,13 +100,14 @@ export default function FacultyDashboard() {
   /* ---------- Auth ---------- */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        // You could check faculty role here if needed
+      if (!user) {
+        router.replace("/login");
+        return;
       }
+      setUser(user);
     });
     return () => unsub();
-  }, []);
+  }, [router]);
 
   /* ---------- Project Listeners ---------- */
   useEffect(() => {

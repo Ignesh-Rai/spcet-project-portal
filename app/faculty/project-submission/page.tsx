@@ -138,9 +138,15 @@ function ProjectFormContent() {
   const MAX_PDF_SIZE = 5 * 1024 * 1024 // 5MB as requested
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setCurrentUser(u))
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        router.replace("/login")
+        return
+      }
+      setCurrentUser(u)
+    })
     return () => unsub()
-  }, [])
+  }, [router])
 
   function handleTeamSizeChange(newSize: number) {
     setTeamSize(newSize)

@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, getIdTokenResult, signOut, setPersistence, browserSessionPersistence } from "firebase/auth";
+import { signInWithEmailAndPassword, getIdTokenResult, signOut, setPersistence, browserSessionPersistence, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Eye, EyeOff, ShieldCheck, User, Users } from "lucide-react";
+import { useEffect } from "react";
 
 type Role = "faculty" | "hod" | "admin";
 
@@ -16,6 +17,43 @@ export default function UnifiedLogin() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
+
+    useEffect(() => {
+        const unsub = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const idTokenResult = await user.getIdTokenResult();
+                    const userRole = idTokenResult.claims.role as string;
+
+                    if (userRole) {
+                        // Refresh session cookie just in case
+                        const token = await user.getIdToken();
+                        await fetch("/api/auth/session", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ token }),
+                        });
+
+                        router.replace(`/${userRole}/dashboard`);
+                        return;
+                    }
+                } catch (err) {
+                    console.error("Session check error:", err);
+                }
+            }
+            setCheckingSession(false);
+        });
+        return () => unsub();
+    }, [router]);
+
+    if (checkingSession) {
+        return (
+            <div className="min-h-screen bg-[#f8faff] flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -30,12 +30,17 @@ export default function HoDProjectReview() {
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                router.replace("/hod/login")
+                router.replace("/login")
                 return
             }
             const token = await user.getIdTokenResult()
             if (token.claims.role !== "hod") {
-                router.replace("/")
+                // Redirect to faculty dashboard if user is faculty, otherwise to login
+                if (token.claims.role === "faculty") {
+                    router.replace("/faculty/dashboard")
+                } else {
+                    router.replace("/login")
+                }
                 return
             }
             setAuthChecked(true)

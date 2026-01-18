@@ -39,7 +39,7 @@ export default function FacultyProjectDetails() {
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                router.replace("/faculty/login")
+                router.replace("/login")
                 return
             }
             setUser(user)
