@@ -27,14 +27,9 @@ export default function UnifiedLogin() {
                     const userRole = idTokenResult.claims.role as string;
 
                     if (userRole) {
-                        // Refresh session cookie just in case
+                        // Set cookie directly for immediate effect
                         const token = await user.getIdToken();
-                        await fetch("/api/auth/session", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ token }),
-                        });
-
+                        document.cookie = `__session=${token}; path=/; SameSite=Lax`;
                         router.replace(`/${userRole}/dashboard`);
                         return;
                     }
@@ -50,7 +45,10 @@ export default function UnifiedLogin() {
     if (checkingSession) {
         return (
             <div className="min-h-screen bg-[#f8faff] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-500 font-medium">Loading session...</p>
+                </div>
             </div>
         );
     }
@@ -61,24 +59,16 @@ export default function UnifiedLogin() {
         setLoading(true);
 
         try {
-            // Set session persistence so closing tab logs out user
+            // Set session persistence
             await setPersistence(auth, browserSessionPersistence);
 
             const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-            const idTokenResult = await getIdTokenResult(cred.user, true);
+            const idTokenResult = await cred.user.getIdTokenResult(true);
             const claims = idTokenResult.claims || {};
 
             if (claims.role === role) {
-                // Set session cookie via Server Action/API for reliability
                 const token = await cred.user.getIdToken();
-
-                await fetch("/api/auth/session", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ token }),
-                });
-
-                // Redirect based on role
+                document.cookie = `__session=${token}; path=/; SameSite=Lax`;
                 router.push(`/${role}/dashboard`);
             } else {
                 await signOut(auth);

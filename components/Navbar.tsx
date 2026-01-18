@@ -46,10 +46,8 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      // 1. Clear session cookie via API
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      });
+      // 1. Clear session cookie directly
+      document.cookie = "__session=; path=/; max-age=0";
 
       // 2. Start navigation away from protected pages
       router.push("/")
