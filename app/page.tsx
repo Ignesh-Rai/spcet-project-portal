@@ -144,21 +144,22 @@ export default function Home() {
         />
         <div className="flex flex-wrap justify-center gap-3 max-w-4xl mx-auto px-6">
           {[
-            "CSE",
-            "IT",
-            "ECE",
-            "EEE",
-            "MECH",
-            "AIML",
-            "IoT",
-            "Web Dev",
+            { label: "CSE", type: "dept" },
+            { label: "IT", type: "dept" },
+            { label: "ECE", type: "dept" },
+            { label: "EEE", type: "dept" },
+            { label: "MECH", type: "dept" },
+            { label: "CIVIL", type: "dept" },
+            { label: "AIML", type: "tech" },
+            { label: "IoT", type: "tech" },
+            { label: "Web Dev", type: "tech" },
           ].map((tag) => (
             <Link
-              key={tag}
-              href={`/explorer?search=${encodeURIComponent(tag)}`}
+              key={tag.label}
+              href={`/explorer?${tag.type === "dept" ? "dept" : "search"}=${encodeURIComponent(tag.label)}`}
               className="px-6 py-2 bg-blue-100 text-blue-700 rounded-full font-bold cursor-pointer hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-200"
             >
-              {tag}
+              {tag.label}
             </Link>
           ))}
         </div>

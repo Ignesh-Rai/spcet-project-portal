@@ -5,39 +5,49 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Medal, Grid, Search, FlaskConical } from "lucide-react"
 
-// ✅ IMPORT FIRESTORE FUNCTIONS (only new imports)
+// ✅ IMPORT FIRESTORE FUNCTIONS
 import {
-  fetchPublicProjects,
-  fetchMoreProjects,
   subscribeToPublicProjects,
 } from "@/lib/db/projects"
+
+const departments = ["All", "CSE", "IT", "ECE", "EEE", "MECH", "CIVIL"]
+const types = ["All", "College Project", "Product", "Publication"]
 
 function ExplorerContent() {
   const searchParams = useSearchParams()
   const initialSearch = searchParams.get("search") || ""
 
-  const [projects, setProjects] = useState<any[]>([])         // ← updated
-  const [lastDoc, setLastDoc] = useState<any>(null)           // ← updated
-  const [loading, setLoading] = useState(true)                // ← updated
+  const initialDeptRaw = searchParams.get("dept") || "All"
+  const initialDept = departments.find(d => d.toLowerCase() === initialDeptRaw.toLowerCase()) || "All"
+
+  const initialTypeRaw = searchParams.get("type") || "All"
+  const initialType = types.find(t => t.toLowerCase() === initialTypeRaw.toLowerCase()) || "All"
+
+  const initialTech = searchParams.get("tech") || "All"
+
+  const [projects, setProjects] = useState<any[]>([])
+  const [lastDoc, setLastDoc] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   const [searchQuery, setSearchQuery] = useState(initialSearch)
-  const [selectedDept, setSelectedDept] = useState("All")
-  const [selectedType, setSelectedType] = useState("All")
-  const [selectedTech, setSelectedTech] = useState("All")
-  const [showFilters, setShowFilters] = useState(false)
+  const [selectedDept, setSelectedDept] = useState(initialDept)
+  const [selectedType, setSelectedType] = useState(initialType)
+  const [selectedTech, setSelectedTech] = useState(initialTech)
+  const [showFilters, setShowFilters] = useState(
+    initialDept !== "All" || initialType !== "All" || initialTech !== "All"
+  )
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const PROJECTS_PER_PAGE = 9
 
   // -------------------------------------------------------------
-  //  REAL-TIME FIRESTORE FETCH (replaces dummy array)
+  //  REAL-TIME FIRESTORE FETCH
   // -------------------------------------------------------------
   useEffect(() => {
     setLoading(true)
 
     const unsub = subscribeToPublicProjects((items, last) => {
-      // normalize Firestore fields to your UI shape
       const formatted = items.map((p: any, idx: number) => ({
         id: p.id ?? idx,
         title: p.title ?? "Untitled Project",
@@ -62,24 +72,36 @@ function ExplorerContent() {
   }, [])
 
   // -------------------------------------------------------------
-  // 🔎 FILTER LOGIC (UNCHANGED)
+  // 🔎 FILTER LOGIC
   // -------------------------------------------------------------
   const filteredProjects = projects.filter((p) => {
-    const query = searchQuery.toLowerCase()
-    const matchesSearch =
-      p.title.toLowerCase().includes(query) ||
-      p.dept.toLowerCase().includes(query) ||
-      (p.tech && p.tech.some((t: string) => t.toLowerCase().includes(query)))
+    const query = searchQuery.toLowerCase().trim()
+    const deptCodes = ["cse", "it", "ece", "eee", "mech", "civil", "aiml"]
 
-    const matchesDept = selectedDept === "All" || p.dept === selectedDept
+    // If search query is a department code, use whole-word matching to avoid false positives like "it" in "circuit"
+    const isDeptQuery = deptCodes.includes(query)
+
+    const matchesSearch =
+      query === "" ||
+      (isDeptQuery
+        ? new RegExp(`\\b${query}\\b`, 'i').test(p.title)
+        : p.title.toLowerCase().includes(query)) ||
+      (isDeptQuery
+        ? p.dept.toLowerCase() === query
+        : p.dept.toLowerCase().includes(query)) ||
+      (p.tech && p.tech.some((t: string) =>
+        isDeptQuery
+          ? new RegExp(`\\b${query}\\b`, 'i').test(t)
+          : t.toLowerCase().includes(query)
+      ))
+
+    const matchesDept = selectedDept === "All" || p.dept.toLowerCase() === selectedDept.toLowerCase()
     const matchesType = selectedType === "All" || p.type === selectedType
     const matchesTech = selectedTech === "All" || p.tech.includes(selectedTech)
 
     return matchesSearch && matchesDept && matchesType && matchesTech
   })
 
-  const departments = ["All", "CSE", "IT", "ECE", "EEE", "MECH", "CIVIL"]
-  const types = ["All", "College Project", "Product", "Publication"]
   const technologies = [
     "All",
     ...new Set(projects.flatMap((p) => p.tech || [])),
@@ -99,7 +121,7 @@ function ExplorerContent() {
   }, [searchQuery, selectedDept, selectedType, selectedTech])
 
   // -------------------------------------------------------------
-  // 🔥 UI STARTS — NOTHING HERE IS MODIFIED
+  // UI STARTS
   // -------------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50 pt-10 px-6 pb-20">
@@ -116,7 +138,7 @@ function ExplorerContent() {
         <div className="mt-8 flex gap-2 w-full">
           <input
             type="text"
-            placeholder="Search by project title..."
+            placeholder="Search by project title, department, or technology..."
             className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 placeholder-gray-400 bg-white"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -177,8 +199,6 @@ function ExplorerContent() {
             </div>
           </div>
         )}
-
-
 
         {/* ⭐ Hall of Fame */}
         {filteredProjects.some(p => p.hallOfFame) && (
