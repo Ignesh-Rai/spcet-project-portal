@@ -97,36 +97,57 @@ function DashboardContent() {
 
   // Search and Pagination
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const initialPage = parseInt(searchParams.get("page") || "1");
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const PROJECTS_PER_PAGE = 9;
 
   // Handle Tab Change
   const handleTabChange = (newTab: string) => {
     setTab(newTab as any);
-    localStorage.setItem("faculty_last_tab", newTab); // Persist
+    setCurrentPage(1); // Reset to page 1 on tab change
+    localStorage.setItem("faculty_last_tab", newTab);
     const params = new URLSearchParams(window.location.search);
     params.set("tab", newTab);
+    params.set("page", "1");
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
-  /* ---------- Sync Tab with URL & LocalStorage ---------- */
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", newPage.toString());
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
+
+  /* ---------- Scroll Restoration ---------- */
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem("faculty_dashboard_scroll");
+    if (savedScroll) {
+      setTimeout(() => {
+        window.scrollTo({ top: parseInt(savedScroll), behavior: "instant" });
+        sessionStorage.removeItem("faculty_dashboard_scroll");
+      }, 100);
+    }
+  }, [tab]); // Restore when tab data is likely rendered
+
+  function saveScroll() {
+    sessionStorage.setItem("faculty_dashboard_scroll", window.scrollY.toString());
+  }
+
+  /* ---------- Sync Tab & Page with URL ---------- */
   useEffect(() => {
     const urlTab = searchParams.get("tab");
+    const urlPage = parseInt(searchParams.get("page") || "1");
+
     if (urlTab && ["drafts", "pending", "published", "rejected"].includes(urlTab)) {
       setTab(urlTab as any);
       localStorage.setItem("faculty_last_tab", urlTab);
-    } else {
-      // If no tab in URL, check localStorage
-      const lastTab = localStorage.getItem("faculty_last_tab");
-      if (lastTab && ["drafts", "pending", "published", "rejected"].includes(lastTab)) {
-        setTab(lastTab as any);
-        // Update URL to match (optional but good for consistency)
-        const params = new URLSearchParams(window.location.search);
-        params.set("tab", lastTab);
-        router.replace(`?${params.toString()}`, { scroll: false });
-      }
     }
-  }, [searchParams, router]);
+
+    if (!isNaN(urlPage)) {
+      setCurrentPage(urlPage);
+    }
+  }, [searchParams]);
 
   /* ---------- Auth ---------- */
   useEffect(() => {
@@ -271,7 +292,11 @@ function DashboardContent() {
           filteredPublished).length / PROJECTS_PER_PAGE
   );
 
-  useEffect(() => { setCurrentPage(1); }, [tab, searchQuery]);
+  useEffect(() => {
+    // Optimization: only reset page if we're not loading from URL
+    const urlPage = parseInt(searchParams.get("page") || "0");
+    if (urlPage === 0) setCurrentPage(1);
+  }, [tab, searchQuery, searchParams]);
 
   /* ---------- UI Helpers ---------- */
   function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
@@ -299,7 +324,12 @@ function DashboardContent() {
       <div className="bg-white rounded-xl border border-blue-300 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
         <div className="p-6 flex flex-col flex-1">
           <div className="flex justify-between items-start mb-2 gap-2">
-            <Link href={`/faculty/projects/${p.id}?tab=${tab}`} scroll={false} className="group/title flex-1">
+            <Link
+              href={`/faculty/projects/${p.id}?tab=${tab}&page=${currentPage}`}
+              onClick={saveScroll}
+              scroll={false}
+              className="group/title flex-1"
+            >
               <h3 className="font-bold text-gray-900 group-hover/title:text-blue-600 transition-colors line-clamp-2 text-lg leading-tight">{p.title}</h3>
             </Link>
             <div className="flex flex-col items-end gap-2">
@@ -366,7 +396,8 @@ function DashboardContent() {
               <p className="text-gray-500 mt-1 font-medium">Manage your project submissions and track their status.</p>
             </div>
             <Link
-              href={`/faculty/project-submission?tab=${tab}`}
+              href={`/faculty/project-submission?tab=${tab}&page=${currentPage}`}
+              onClick={saveScroll}
               scroll={false}
               className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow flex items-center gap-2 justify-center"
             >
@@ -425,7 +456,8 @@ function DashboardContent() {
                       <ProjectCard key={p.id} p={p}>
                         <div className="flex gap-2">
                           <Link
-                            href={`/faculty/project-submission?edit=${p.id}&tab=drafts`}
+                            href={`/faculty/project-submission?edit=${p.id}&tab=drafts&page=${currentPage}`}
+                            onClick={saveScroll}
                             className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
                             title="Edit Draft"
                           >
@@ -467,13 +499,18 @@ function DashboardContent() {
                           </span>
                           <div className="flex items-center gap-3">
                             <Link
-                              href={`/faculty/project-submission?edit=${p.id}&tab=pending`}
+                              href={`/faculty/project-submission?edit=${p.id}&tab=pending&page=${currentPage}`}
+                              onClick={saveScroll}
                               className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
                               title="Edit Submission"
                             >
                               <Pencil size={16} />
                             </Link>
-                            <Link href={`/faculty/projects/${p.id}?tab=pending`} className="text-blue-600 hover:underline text-xs font-bold flex items-center gap-1">
+                            <Link
+                              href={`/faculty/projects/${p.id}?tab=pending&page=${currentPage}`}
+                              onClick={saveScroll}
+                              className="text-blue-600 hover:underline text-xs font-bold flex items-center gap-1"
+                            >
                               Review <ChevronRight size={12} />
                             </Link>
                           </div>
@@ -493,7 +530,13 @@ function DashboardContent() {
                           <span className="text-xs font-bold text-green-600 flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
                             <CheckCircle2 size={14} /> Published
                           </span>
-                          <Link href={`/faculty/projects/${p.id}?tab=published`} className="text-blue-600 hover:underline text-xs font-bold">View Details</Link>
+                          <Link
+                            href={`/faculty/projects/${p.id}?tab=published&page=${currentPage}`}
+                            onClick={saveScroll}
+                            className="text-blue-600 hover:underline text-xs font-bold"
+                          >
+                            View Details
+                          </Link>
                         </div>
                       </ProjectCard>
                     ))}
@@ -512,7 +555,8 @@ function DashboardContent() {
                             <p className="text-sm text-red-600 italic line-clamp-3">&quot;{p.hodFeedback || "No feedback provided."}&quot;</p>
                           </div>
                           <Link
-                            href={`/faculty/project-submission?edit=${p.id}&tab=rejected`}
+                            href={`/faculty/project-submission?edit=${p.id}&tab=rejected&page=${currentPage}`}
+                            onClick={saveScroll}
                             className="w-full py-3 bg-red-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-100"
                           >
                             <Pencil size={18} /> Fix & Resubmit
@@ -528,7 +572,7 @@ function DashboardContent() {
             <div className="flex justify-center gap-4 mt-16">
               <button
                 disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
+                onClick={() => handlePageChange(currentPage - 1)}
                 className="px-6 py-2 bg-white border border-gray-100 rounded-xl font-bold text-gray-600 disabled:opacity-30 hover:border-blue-500 hover:text-blue-600 transition-all"
               >
                 Previous
@@ -538,7 +582,7 @@ function DashboardContent() {
               </div>
               <button
                 disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
+                onClick={() => handlePageChange(currentPage + 1)}
                 className="px-6 py-2 bg-white border border-gray-100 rounded-xl font-bold text-gray-600 disabled:opacity-30 hover:border-blue-500 hover:text-blue-600 transition-all"
               >
                 Next

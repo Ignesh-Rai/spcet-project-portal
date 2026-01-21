@@ -28,6 +28,7 @@ function ProjectFormContent() {
   const searchParams = useSearchParams()
   const editId = searchParams.get("edit")
   const returnTab = searchParams.get("tab") || "drafts"
+  const returnPage = searchParams.get("page") || "1"
   // ===============================
   // UPDATED STATE
   // ===============================
@@ -95,7 +96,10 @@ function ProjectFormContent() {
           if (snap.exists()) {
             const data = snap.data()
             setTitle(data.title || "")
-            setDepartment(data.dept || data.dept || "")
+            // Only update department if NOT locked by faculty info
+            if (!isDeptLocked) {
+              setDepartment(data.dept || data.department || "")
+            }
             setAcademicYear(data.year || "")
             setProjectType(data.projectType || "")
             setTechStack(data.technologies?.join(", ") || "")
@@ -153,7 +157,7 @@ function ProjectFormContent() {
         const token = await getIdTokenResult(u)
         const dept = token.claims.department as string
         if (dept) {
-          setDepartment(dept)
+          setDepartment(dept) // Force override
           setIsDeptLocked(true)
         }
       } catch (err) {
@@ -635,7 +639,7 @@ function ProjectFormContent() {
       addToast("Draft Saved Successfully!", "success")
       setTimeout(() => {
         setSubmitting(false)
-        router.push(`/faculty/dashboard?tab=${returnTab}`, { scroll: false })
+        router.push(`/faculty/dashboard?tab=${returnTab}&page=${returnPage}`, { scroll: false })
       }, 1000)
     } catch (error: any) {
       setSubmitting(false)
@@ -730,7 +734,7 @@ function ProjectFormContent() {
       setUploadMessage("Submitted for review!")
       setTimeout(() => {
         setSubmitting(false)
-        router.push("/faculty/dashboard?tab=pending", { scroll: false })
+        router.push(`/faculty/dashboard?tab=pending&page=1`, { scroll: false })
       }, 1000)
     } catch (error: any) {
       setSubmitting(false)
@@ -772,7 +776,7 @@ function ProjectFormContent() {
           {/* Top Left Back Button */}
           <button
             type="button"
-            onClick={() => router.push(`/faculty/dashboard?tab=${returnTab}`, { scroll: false })}
+            onClick={() => router.push(`/faculty/dashboard?tab=${returnTab}&page=${returnPage}`, { scroll: false })}
             className="group absolute -top-4 -left-4 md:-left-12 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:bg-blue-50 transition-all border border-gray-100"
           >
             <ArrowLeft className="text-gray-600 group-hover:text-blue-600 transition-colors" size={24} />

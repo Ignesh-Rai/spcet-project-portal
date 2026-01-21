@@ -31,6 +31,7 @@ export default function FacultyProjectDetails() {
     const searchParams = useSearchParams()
     const id = params?.id
     const returnTab = searchParams.get("tab") || "drafts"
+    const returnPage = searchParams.get("page") || "1"
 
     const [project, setProject] = useState<any>(null)
     const [loading, setLoading] = useState(true)
@@ -86,7 +87,7 @@ export default function FacultyProjectDetails() {
             <div className="min-h-screen bg-gray-50 p-8 flex flex-col items-center justify-center">
                 <AlertCircle size={48} className="text-red-500 mb-4" />
                 <h1 className="text-2xl font-bold text-gray-900">Project Not Found</h1>
-                <Link href={`/faculty/dashboard?tab=${returnTab}`} scroll={false} className="mt-4 text-blue-600 flex items-center gap-2 hover:underline">
+                <Link href={`/faculty/dashboard?tab=${returnTab}&page=${returnPage}`} scroll={false} className="mt-4 text-blue-600 flex items-center gap-2 hover:underline">
                     <ArrowLeft size={20} /> Back to Dashboard
                 </Link>
             </div>
@@ -102,7 +103,7 @@ export default function FacultyProjectDetails() {
             <div className="bg-white border-b border-gray-200 sticky top-22 z-10">
                 <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link href={`/faculty/dashboard?tab=${returnTab}`} scroll={false} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        <Link href={`/faculty/dashboard?tab=${returnTab}&page=${returnPage}`} scroll={false} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                             <ArrowLeft size={24} className="text-gray-600" />
                         </Link>
                         <div>
@@ -121,7 +122,7 @@ export default function FacultyProjectDetails() {
                     </div>
                     {project.visibility !== 'public' && (
                         <Link
-                            href={`/faculty/project-submission?edit=${project.id}&tab=${returnTab}`}
+                            href={`/faculty/project-submission?edit=${project.id}&tab=${returnTab}&page=${returnPage}`}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold text-sm shadow-lg shadow-blue-100"
                         >
                             <Edit3 size={18} /> Edit Project
