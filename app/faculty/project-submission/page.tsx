@@ -635,7 +635,7 @@ function ProjectFormContent() {
       addToast("Draft Saved Successfully!", "success")
       setTimeout(() => {
         setSubmitting(false)
-        router.push(`/faculty/dashboard?tab=${returnTab}`)
+        router.push(`/faculty/dashboard?tab=${returnTab}`, { scroll: false })
       }, 1000)
     } catch (error: any) {
       setSubmitting(false)
@@ -730,7 +730,7 @@ function ProjectFormContent() {
       setUploadMessage("Submitted for review!")
       setTimeout(() => {
         setSubmitting(false)
-        router.push("/faculty/dashboard?tab=pending")
+        router.push("/faculty/dashboard?tab=pending", { scroll: false })
       }, 1000)
     } catch (error: any) {
       setSubmitting(false)
@@ -772,7 +772,7 @@ function ProjectFormContent() {
           {/* Top Left Back Button */}
           <button
             type="button"
-            onClick={() => router.push(`/faculty/dashboard?tab=${returnTab}`)}
+            onClick={() => router.push(`/faculty/dashboard?tab=${returnTab}`, { scroll: false })}
             className="group absolute -top-4 -left-4 md:-left-12 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:bg-blue-50 transition-all border border-gray-100"
           >
             <ArrowLeft className="text-gray-600 group-hover:text-blue-600 transition-colors" size={24} />

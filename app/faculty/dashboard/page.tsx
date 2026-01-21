@@ -103,10 +103,30 @@ function DashboardContent() {
   // Handle Tab Change
   const handleTabChange = (newTab: string) => {
     setTab(newTab as any);
+    localStorage.setItem("faculty_last_tab", newTab); // Persist
     const params = new URLSearchParams(window.location.search);
     params.set("tab", newTab);
     router.replace(`?${params.toString()}`, { scroll: false });
   };
+
+  /* ---------- Sync Tab with URL & LocalStorage ---------- */
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab && ["drafts", "pending", "published", "rejected"].includes(urlTab)) {
+      setTab(urlTab as any);
+      localStorage.setItem("faculty_last_tab", urlTab);
+    } else {
+      // If no tab in URL, check localStorage
+      const lastTab = localStorage.getItem("faculty_last_tab");
+      if (lastTab && ["drafts", "pending", "published", "rejected"].includes(lastTab)) {
+        setTab(lastTab as any);
+        // Update URL to match (optional but good for consistency)
+        const params = new URLSearchParams(window.location.search);
+        params.set("tab", lastTab);
+        router.replace(`?${params.toString()}`, { scroll: false });
+      }
+    }
+  }, [searchParams, router]);
 
   /* ---------- Auth ---------- */
   useEffect(() => {
@@ -279,7 +299,7 @@ function DashboardContent() {
       <div className="bg-white rounded-xl border border-blue-300 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
         <div className="p-6 flex flex-col flex-1">
           <div className="flex justify-between items-start mb-2 gap-2">
-            <Link href={`/faculty/projects/${p.id}`} className="group/title flex-1">
+            <Link href={`/faculty/projects/${p.id}?tab=${tab}`} scroll={false} className="group/title flex-1">
               <h3 className="font-bold text-gray-900 group-hover/title:text-blue-600 transition-colors line-clamp-2 text-lg leading-tight">{p.title}</h3>
             </Link>
             <div className="flex flex-col items-end gap-2">
@@ -347,6 +367,7 @@ function DashboardContent() {
             </div>
             <Link
               href={`/faculty/project-submission?tab=${tab}`}
+              scroll={false}
               className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow flex items-center gap-2 justify-center"
             >
               <Plus size={20} /> New Submission
@@ -452,7 +473,7 @@ function DashboardContent() {
                             >
                               <Pencil size={16} />
                             </Link>
-                            <Link href={`/faculty/projects/${p.id}`} className="text-blue-600 hover:underline text-xs font-bold flex items-center gap-1">
+                            <Link href={`/faculty/projects/${p.id}?tab=pending`} className="text-blue-600 hover:underline text-xs font-bold flex items-center gap-1">
                               Review <ChevronRight size={12} />
                             </Link>
                           </div>
@@ -472,7 +493,7 @@ function DashboardContent() {
                           <span className="text-xs font-bold text-green-600 flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
                             <CheckCircle2 size={14} /> Published
                           </span>
-                          <Link href={`/faculty/projects/${p.id}`} className="text-blue-600 hover:underline text-xs font-bold">View Details</Link>
+                          <Link href={`/faculty/projects/${p.id}?tab=published`} className="text-blue-600 hover:underline text-xs font-bold">View Details</Link>
                         </div>
                       </ProjectCard>
                     ))}
