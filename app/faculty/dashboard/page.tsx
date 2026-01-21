@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import {
   FileText, Hourglass, Trophy, Search, Trash2,
-  CheckCircle2, AlertCircle, Plus, Pencil, Send, FolderOpen, Eye, ChevronRight
+  CheckCircle2, AlertCircle, Plus, Pencil, Send, FolderOpen, ChevronRight
 } from "lucide-react"
 import {
   listenToFacultyDrafts,
@@ -74,9 +74,12 @@ function ConfirmModal({ open, title, message, onConfirm, onCancel, loading }: Co
   );
 }
 
-export default function FacultyDashboard() {
+function DashboardContent() {
   const router = useRouter();
-  const [tab, setTab] = useState<"drafts" | "pending" | "published" | "rejected">("drafts");
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as any) || "drafts";
+
+  const [tab, setTab] = useState<"drafts" | "pending" | "published" | "rejected">(initialTab);
   const [user, setUser] = useState<any>(null);
 
   const [drafts, setDrafts] = useState<Project[]>([]);
@@ -96,6 +99,14 @@ export default function FacultyDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const PROJECTS_PER_PAGE = 9;
+
+  // Handle Tab Change
+  const handleTabChange = (newTab: string) => {
+    setTab(newTab as any);
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", newTab);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   /* ---------- Auth ---------- */
   useEffect(() => {
@@ -335,7 +346,7 @@ export default function FacultyDashboard() {
               <p className="text-gray-500 mt-1 font-medium">Manage your project submissions and track their status.</p>
             </div>
             <Link
-              href="/faculty/project-submission"
+              href={`/faculty/project-submission?tab=${tab}`}
               className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow flex items-center gap-2 justify-center"
             >
               <Plus size={20} /> New Submission
@@ -359,7 +370,7 @@ export default function FacultyDashboard() {
             ].map(t => (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id as any)}
+                onClick={() => handleTabChange(t.id as any)}
                 className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap ${tab === t.id
                   ? "bg-blue-600 text-white"
                   : "bg-gray-200 hover:bg-gray-300 text-gray-700"
@@ -393,7 +404,7 @@ export default function FacultyDashboard() {
                       <ProjectCard key={p.id} p={p}>
                         <div className="flex gap-2">
                           <Link
-                            href={`/faculty/project-submission?edit=${p.id}`}
+                            href={`/faculty/project-submission?edit=${p.id}&tab=drafts`}
                             className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
                             title="Edit Draft"
                           >
@@ -435,7 +446,7 @@ export default function FacultyDashboard() {
                           </span>
                           <div className="flex items-center gap-3">
                             <Link
-                              href={`/faculty/project-submission?edit=${p.id}`}
+                              href={`/faculty/project-submission?edit=${p.id}&tab=pending`}
                               className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
                               title="Edit Submission"
                             >
@@ -480,7 +491,7 @@ export default function FacultyDashboard() {
                             <p className="text-sm text-red-600 italic line-clamp-3">&quot;{p.hodFeedback || "No feedback provided."}&quot;</p>
                           </div>
                           <Link
-                            href={`/faculty/project-submission?edit=${p.id}`}
+                            href={`/faculty/project-submission?edit=${p.id}&tab=rejected`}
                             className="w-full py-3 bg-red-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-100"
                           >
                             <Pencil size={18} /> Fix & Resubmit
@@ -516,5 +527,13 @@ export default function FacultyDashboard() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function FacultyDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-blue-600 font-bold">Loading Dashboard...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

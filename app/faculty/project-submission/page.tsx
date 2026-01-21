@@ -4,10 +4,11 @@ import React, { useState, useEffect, Suspense, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, X, UploadCloud, FileIcon, Trash2, CheckCircle2, AlertCircle, Info, Eye, User, ExternalLink } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { onAuthStateChanged } from "firebase/auth"
+import { onAuthStateChanged, getIdTokenResult } from "firebase/auth"
 import { auth, db } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
 import { createProject, updateProject } from "@/lib/db/projects"
+import { useSearchParams } from "next/navigation"
 import { uploadScreenshots, uploadProjectReport, uploadToCloudinary } from "@/lib/cloudinary"
 
 const MAX_IMAGE_SIZE = 500 * 1024 // 500 KB
@@ -24,8 +25,9 @@ export default function ProjectSubmission() {
 
 function ProjectFormContent() {
   const router = useRouter()
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
-  const editId = searchParams?.get("edit")
+  const searchParams = useSearchParams()
+  const editId = searchParams.get("edit")
+  const returnTab = searchParams.get("tab") || "drafts"
   // ===============================
   // UPDATED STATE
   // ===============================
@@ -35,6 +37,7 @@ function ProjectFormContent() {
 
   const [title, setTitle] = useState("")
   const [department, setDepartment] = useState("")
+  const [isDeptLocked, setIsDeptLocked] = useState(false)
   const [academicYear, setAcademicYear] = useState("")
   const [projectType, setProjectType] = useState("")
   const [techStack, setTechStack] = useState("")
@@ -138,12 +141,24 @@ function ProjectFormContent() {
   const MAX_PDF_SIZE = 5 * 1024 * 1024 // 5MB as requested
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         router.replace("/login")
         return
       }
       setCurrentUser(u)
+
+      // Fetch department from claims
+      try {
+        const token = await getIdTokenResult(u)
+        const dept = token.claims.department as string
+        if (dept) {
+          setDepartment(dept)
+          setIsDeptLocked(true)
+        }
+      } catch (err) {
+        console.error("Error fetching user claims:", err)
+      }
     })
     return () => unsub()
   }, [router])
@@ -617,10 +632,10 @@ function ProjectFormContent() {
       }
 
       setProgress(100)
-      setUploadMessage("Draft saved successfully!")
+      addToast("Draft Saved Successfully!", "success")
       setTimeout(() => {
         setSubmitting(false)
-        router.push("/faculty/dashboard")
+        router.push(`/faculty/dashboard?tab=${returnTab}`)
       }, 1000)
     } catch (error: any) {
       setSubmitting(false)
@@ -715,7 +730,7 @@ function ProjectFormContent() {
       setUploadMessage("Submitted for review!")
       setTimeout(() => {
         setSubmitting(false)
-        router.push("/faculty/dashboard")
+        router.push("/faculty/dashboard?tab=pending")
       }, 1000)
     } catch (error: any) {
       setSubmitting(false)
@@ -757,7 +772,7 @@ function ProjectFormContent() {
           {/* Top Left Back Button */}
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() => router.push(`/faculty/dashboard?tab=${returnTab}`)}
             className="group absolute -top-4 -left-4 md:-left-12 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:bg-blue-50 transition-all border border-gray-100"
           >
             <ArrowLeft className="text-gray-600 group-hover:text-blue-600 transition-colors" size={24} />
@@ -787,9 +802,10 @@ function ProjectFormContent() {
               <label htmlFor="project-dept" className="text-sm font-semibold text-gray-900">Department</label>
               <select
                 id="project-dept"
-                className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className={`p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all ${isDeptLocked ? 'opacity-70 cursor-not-allowed font-bold' : ''}`}
                 value={department}
                 onChange={e => setDepartment(e.target.value)}
+                disabled={isDeptLocked}
               >
                 <option value="">Select Department</option>
                 <option>CSE</option>
