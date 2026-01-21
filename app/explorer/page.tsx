@@ -10,7 +10,7 @@ import {
   subscribeToPublicProjects,
 } from "@/lib/db/projects"
 
-const departments = ["All", "CSE", "IT", "ECE", "EEE", "MECH", "CIVIL"]
+const departments = ["All", "CSE", "IT", "AIDS", "CSBS", "ECE", "EEE", "BIOTECH", "MECH", "CIVIL", "CHEM", "MBA"]
 const types = ["All", "College Project", "Product", "Publication"]
 
 function ExplorerContent() {

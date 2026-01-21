@@ -509,10 +509,15 @@ export default function AdminDashboard() {
                                     >
                                         <option value="CSE">CSE</option>
                                         <option value="IT">IT</option>
+                                        <option value="AIDS">AIDS</option>
+                                        <option value="CSBS">CSBS</option>
                                         <option value="ECE">ECE</option>
                                         <option value="EEE">EEE</option>
+                                        <option value="BIOTECH">BIOTECH</option>
                                         <option value="MECH">MECH</option>
                                         <option value="CIVIL">CIVIL</option>
+                                        <option value="CHEM">CHEM</option>
+                                        <option value="MBA">MBA</option>
                                     </select>
                                 </div>
                             </div>

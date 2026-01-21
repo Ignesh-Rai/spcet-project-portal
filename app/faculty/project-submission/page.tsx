@@ -154,10 +154,23 @@ function ProjectFormContent() {
 
       // Fetch department from claims
       try {
-        const token = await getIdTokenResult(u)
-        const dept = token.claims.department as string
+        const token = await getIdTokenResult(u, true) // FORCE REFRESH to get latest claims
+        let dept = token.claims.department as string
+
+        // Fallback: If claim is missing, try to infer from email (e.g. name.cse@spcet.ac.in)
+        if (!dept && u.email) {
+          const emailLower = u.email.toLowerCase()
+          const deptCodes = ["CSE", "IT", "AIDS", "CSBS", "ECE", "EEE", "BIOTECH", "MECH", "CIVIL", "CHEM", "MBA"]
+          const found = deptCodes.find(code =>
+            emailLower.includes(`.${code.toLowerCase()}@`) ||
+            emailLower.includes(`@${code.toLowerCase()}.`) ||
+            emailLower.split('@')[0].endsWith(`.${code.toLowerCase()}`)
+          )
+          if (found) dept = found
+        }
+
         if (dept) {
-          setDepartment(dept) // Force override
+          setDepartment(dept.toUpperCase()) // Force override
           setIsDeptLocked(true)
         }
       } catch (err) {
@@ -802,11 +815,14 @@ function ProjectFormContent() {
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label htmlFor="project-dept" className="text-sm font-semibold text-gray-900">Department</label>
+            <div className="flex flex-col gap-2 relative">
+              <label htmlFor="project-dept" className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                Department
+                {isDeptLocked && <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-tighter">Verified</span>}
+              </label>
               <select
                 id="project-dept"
-                className={`p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all ${isDeptLocked ? 'opacity-70 cursor-not-allowed font-bold' : ''}`}
+                className={`p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all ${isDeptLocked ? 'bg-blue-50/50 border-blue-200 cursor-not-allowed font-bold text-blue-800' : ''}`}
                 value={department}
                 onChange={e => setDepartment(e.target.value)}
                 disabled={isDeptLocked}
@@ -814,12 +830,15 @@ function ProjectFormContent() {
                 <option value="">Select Department</option>
                 <option>CSE</option>
                 <option>IT</option>
+                <option>AIDS</option>
+                <option>CSBS</option>
                 <option>ECE</option>
                 <option>EEE</option>
+                <option>BIOTECH</option>
                 <option>MECH</option>
                 <option>CIVIL</option>
-                <option>AIDS</option>
-                <option>OTHER</option>
+                <option>CHEM</option>
+                <option>MBA</option>
               </select>
             </div>
 
