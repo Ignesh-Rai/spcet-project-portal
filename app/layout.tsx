@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "SPCET Project Portal",
     description: "Official project showcase portal of St. Peter's College of Engineering and Technology",
-    url: "https://projectportal.spcet.ac.in", // Placeholder URL, update if you have the actual domain
+    url: "https://spcet-project-portal-v9q7.vercel.app/",
     siteName: "SPCET Project Portal",
     locale: "en_US",
     type: "website",

@@ -6,4 +6,4 @@ Disallow: /hod
 Disallow: /admin
 Disallow: /login
 
-Sitemap: https://projectportal.spcet.ac.in/sitemap.xml
+Sitemap: https://spcet-project-portal-v9q7.vercel.app/sitemap.xml
