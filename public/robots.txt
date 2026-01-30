@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /explorer
+Disallow: /faculty
+Disallow: /hod
+Disallow: /admin
+Disallow: /login
+
+Sitemap: https://projectportal.spcet.ac.in/sitemap.xml
