@@ -7,8 +7,23 @@ const initAdmin = () => {
     if (admin.apps.length > 0) return admin.apps[0];
 
     try {
-        const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        console.log("Checking for FIREBASE_SERVICE_ACCOUNT_KEY ENV:", !!serviceAccountVar);
+        const envKeys = Object.keys(process.env);
+        console.log("Available ENV keys:", envKeys.filter(k => k.includes("FIREBASE") || k.includes("SERVICE")));
+
+        // Try exact match first
+        let serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+
+        // If not found, look for any key that might be the service account
+        if (!serviceAccountVar) {
+            const potentialKey = envKeys.find(k =>
+                k.toUpperCase().includes("SERVICE_ACCOUNT") ||
+                k.toUpperCase().includes("FIREBASE_KEY")
+            );
+            if (potentialKey) {
+                console.log(`Found potential service account in ENV: ${potentialKey}`);
+                serviceAccountVar = process.env[potentialKey];
+            }
+        }
 
         if (serviceAccountVar) {
             const cleanJson = serviceAccountVar.trim();
@@ -18,8 +33,6 @@ const initAdmin = () => {
             });
         } else {
             const filePath = path.join(process.cwd(), "serviceAccountKey.json");
-            console.log("Checking for local serviceAccountKey.json file:", fs.existsSync(filePath));
-
             if (fs.existsSync(filePath)) {
                 const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
                 return admin.initializeApp({
@@ -27,7 +40,7 @@ const initAdmin = () => {
                 });
             }
         }
-        throw new Error("No service account credentials found. Please check Vercel Environment Variables: FIREBASE_SERVICE_ACCOUNT_KEY");
+        throw new Error(`No service account credentials found. Available related ENVs: ${envKeys.filter(k => k.includes("FIREBASE")).join(", ")}`);
     } catch (error: any) {
         console.error("Firebase Admin initialization error:", error);
         throw error;
