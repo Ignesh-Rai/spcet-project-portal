@@ -277,7 +277,10 @@ export default function HoDDashboard() {
         body: JSON.stringify({ uid, role: "faculty", department: userDept }),
       });
 
-      if (!response.ok) throw new Error("Failed to assign role");
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to assign role");
+      }
 
       setFacultyMessage({ text: "✅ Faculty Account Created Successfully!", type: "success" });
       setNewFacultyEmail("");

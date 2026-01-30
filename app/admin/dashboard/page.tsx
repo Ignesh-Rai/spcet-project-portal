@@ -189,7 +189,10 @@ export default function AdminDashboard() {
                 body: JSON.stringify({ uid, role: "hod", department: newUserDept }),
             });
 
-            if (!response.ok) throw new Error("Failed to assign role");
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Failed to assign role");
+            }
 
             setUserMessage({ text: "✅ HoD Account Created Successfully!", type: "success" });
             setNewUserEmail("");

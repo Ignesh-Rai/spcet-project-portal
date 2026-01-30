@@ -6,11 +6,19 @@ import fs from "fs";
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
     try {
-        const filePath = path.join(process.cwd(), "serviceAccountKey.json");
-        const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-        });
+        const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (serviceAccountVar) {
+            const serviceAccount = JSON.parse(serviceAccountVar);
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+            });
+        } else {
+            const filePath = path.join(process.cwd(), "serviceAccountKey.json");
+            const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+            });
+        }
     } catch (error) {
         console.error("Firebase Admin initialization error:", error);
     }
