@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   authors: [{ name: "SPCET" }],
   robots: "index, follow",
   icons: {
-    icon: "/favicon.png",
+    icon: "/favicon.png", // static asset
   },
   openGraph: {
     title: "SPCET Project Portal",
