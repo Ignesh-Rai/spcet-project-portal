@@ -80,9 +80,10 @@ export default function Navbar() {
             <h1 className="text-lg md:text-xl font-bold text-blue-700 leading-tight">
               St. Peter&apos;s College of Engineering and Technology
             </h1>
-            <p className="text-[10px] md:text-[11px] text-red-600 font-medium leading-tight">
-              (An Autonomous Institution Affiliated to Anna University | Approved by AICTE | Avadi, Chennai, Tamilnadu – 600 054 )
-            </p>
+            <div className="text-[10px] md:text-[11px] text-red-600 font-medium leading-tight">
+              <p>An Autonomous Institution Affiliated to Anna University | Approved by AICTE</p>
+              <p>Avadi, Chennai, Tamilnadu – 600 054</p>
+            </div>
           </div>
         </div>
 

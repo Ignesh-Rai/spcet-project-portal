@@ -148,6 +148,11 @@ export default function Home() {
             { label: "IT", type: "dept" },
             { label: "ECE", type: "dept" },
             { label: "CHEM", type: "dept" },
+            { label: "BIOTECH", type: "dept" },
+            { label: "MECH", type: "dept" },
+            { label: "AI/ML", type: "tech" },
+            { label: "Web Dev", type: "tech" },
+            { label: "IoT", type: "tech" },
           ].map((tag) => (
             <Link
               key={tag.label}
