@@ -8,8 +8,9 @@ const initAdmin = () => {
 
     try {
         const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        console.log("Checking for FIREBASE_SERVICE_ACCOUNT_KEY ENV:", !!serviceAccountVar);
+
         if (serviceAccountVar) {
-            // Trim whitespace and handle potential JSON formatting issues from Vercel UI
             const cleanJson = serviceAccountVar.trim();
             const serviceAccount = JSON.parse(cleanJson);
             return admin.initializeApp({
@@ -17,6 +18,8 @@ const initAdmin = () => {
             });
         } else {
             const filePath = path.join(process.cwd(), "serviceAccountKey.json");
+            console.log("Checking for local serviceAccountKey.json file:", fs.existsSync(filePath));
+
             if (fs.existsSync(filePath)) {
                 const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
                 return admin.initializeApp({
@@ -24,7 +27,7 @@ const initAdmin = () => {
                 });
             }
         }
-        throw new Error("No service account credentials found (ENV or File)");
+        throw new Error("No service account credentials found. Please check Vercel Environment Variables: FIREBASE_SERVICE_ACCOUNT_KEY");
     } catch (error: any) {
         console.error("Firebase Admin initialization error:", error);
         throw error;
