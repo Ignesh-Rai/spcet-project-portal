@@ -3,29 +3,37 @@ import * as admin from "firebase-admin";
 import path from "path";
 import fs from "fs";
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
+const initAdmin = () => {
+    if (admin.apps.length > 0) return admin.apps[0];
+
     try {
         const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
         if (serviceAccountVar) {
-            const serviceAccount = JSON.parse(serviceAccountVar);
-            admin.initializeApp({
+            // Trim whitespace and handle potential JSON formatting issues from Vercel UI
+            const cleanJson = serviceAccountVar.trim();
+            const serviceAccount = JSON.parse(cleanJson);
+            return admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
             });
         } else {
             const filePath = path.join(process.cwd(), "serviceAccountKey.json");
-            const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
+            if (fs.existsSync(filePath)) {
+                const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
+                return admin.initializeApp({
+                    credential: admin.credential.cert(serviceAccount),
+                });
+            }
         }
-    } catch (error) {
+        throw new Error("No service account credentials found (ENV or File)");
+    } catch (error: any) {
         console.error("Firebase Admin initialization error:", error);
+        throw error;
     }
-}
+};
 
 export async function POST(request: Request) {
     try {
+        initAdmin();
         const { uid, role, department } = await request.json();
 
         if (!uid || !role) {
