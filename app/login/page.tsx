@@ -87,8 +87,8 @@ export default function UnifiedLogin() {
             <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to PROJECT PORTAL</h1>
-                    <p className="text-gray-500 text-sm">Sign in to access your dashboard</p>
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-1">Welcome!</p>
+                    <h1 className="text-3xl font-extrabold text-gray-900">Get Authenticated</h1>
                 </div>
 
                 {/* Role Tabs */}
@@ -177,9 +177,9 @@ export default function UnifiedLogin() {
 
                     <div className="text-center mt-6">
                         <p className="text-sm font-semibold text-blue-600">
-                            {role === "faculty" && "Manage your projects and submissions efficiently."}
-                            {role === "hod" && "Review department projects and maintain academic standards."}
-                            {role === "admin" && "Complete system control and analytical overview."}
+                            {role === "faculty" && "Manage your Projects and Submissions Efficiently."}
+                            {role === "hod" && "Review Department Projects and Maintain Academic Standards."}
+                            {role === "admin" && "Complete System Control and Analytical Overview."}
                         </p>
                     </div>
                 </form>

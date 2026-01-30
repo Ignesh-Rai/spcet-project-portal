@@ -558,7 +558,7 @@ export default function HoDDashboard() {
                     <input
                       type="text"
                       required
-                      placeholder="Enter Temporary Password"
+                      placeholder="Enter Password"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
                       value={newFacultyPassword}
                       onChange={(e) => setNewFacultyPassword(e.target.value)}
