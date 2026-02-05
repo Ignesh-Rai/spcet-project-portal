@@ -108,9 +108,11 @@ export default function HoDDashboard() {
 
     // Use a simpler query and filter more precisely on the client
     // This avoids index issues, field naming issues, and missing field issues
-    const q = query(collection(db, "projects"));
+    const q = query(collection(db, "projects"), where("visibility", "!=", "draft"));
 
     const unsub = onSnapshot(q, (snap) => {
+      console.log(`[HoD Dash] Raw projects fetched: ${snap.size}`);
+
       const allItems = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
@@ -118,13 +120,12 @@ export default function HoDDashboard() {
 
       const items = allItems.filter(p => {
         // Handle both 'dept' and 'department' fields
-        const pDept = (p.department || p.dept || "").toUpperCase();
-        const targetDept = userDept.toUpperCase();
+        const pDept = (p.department || p.dept || "").toString().toUpperCase().trim();
+        const targetDept = userDept.toString().toUpperCase().trim();
 
         if (pDept !== targetDept) return false;
-        if (p.visibility === 'draft') return false;
 
-        // Tab specific visibility filtering
+        // Tab specific filtering
         if (activeTab === "hall-of-fame") return p.hallOfFame === true;
         if (activeTab === "approved") return p.visibility === "public" && !p.hallOfFame;
         return p.visibility === "pending";
@@ -134,10 +135,11 @@ export default function HoDDashboard() {
         return bTime - aTime;
       });
 
+      console.log(`[HoD Dash] Filtered projects for ${userDept}/${activeTab}: ${items.length}`);
       setProjects(items);
       setLoading(false);
     }, (error) => {
-      console.error("HoD projects listener error:", error);
+      console.error("[HoD Dash] projects listener error:", error);
       setLoading(false);
     });
 

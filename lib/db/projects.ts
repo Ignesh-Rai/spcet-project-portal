@@ -137,7 +137,6 @@ export async function fetchPublicProjects(pageSize = 12, tech?: string) {
   let q = query(
     collection(db, "projects"),
     where("visibility", "==", "public"),
-    orderBy("createdAt", "desc"),
     limit(pageSize)
   );
 
@@ -146,13 +145,16 @@ export async function fetchPublicProjects(pageSize = 12, tech?: string) {
       collection(db, "projects"),
       where("visibility", "==", "public"),
       where("technologies", "array-contains", tech.trim()),
-      orderBy("createdAt", "desc"),
       limit(pageSize)
     );
   }
 
   const snap = await getDocs(q);
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+    const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0;
+    const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0;
+    return bTime - aTime;
+  });
   const lastDoc = snap.docs[snap.docs.length - 1] || null;
   return { items, lastDoc };
 }
@@ -171,7 +173,6 @@ export async function fetchMoreProjects(
   let q = query(
     collection(db, "projects"),
     where("visibility", "==", "public"),
-    orderBy("createdAt", "desc"),
     startAfter(lastDoc),
     limit(pageSize)
   );
@@ -181,14 +182,17 @@ export async function fetchMoreProjects(
       collection(db, "projects"),
       where("visibility", "==", "public"),
       where("technologies", "array-contains", tech.trim()),
-      orderBy("createdAt", "desc"),
       startAfter(lastDoc),
       limit(pageSize)
     );
   }
 
   const snap = await getDocs(q);
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+    const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0;
+    const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0;
+    return bTime - aTime;
+  });
   const newLast = snap.docs[snap.docs.length - 1] || null;
   return { items, lastDoc: newLast };
 }
@@ -207,7 +211,6 @@ export function subscribeToPublicProjects(
   let q = query(
     collection(db, "projects"),
     where("visibility", "==", "public"),
-    orderBy("createdAt", "desc"),
     limit(pageSize)
   );
 
@@ -216,7 +219,6 @@ export function subscribeToPublicProjects(
       collection(db, "projects"),
       where("visibility", "==", "public"),
       where("technologies", "array-contains", tech.trim()),
-      orderBy("createdAt", "desc"),
       limit(pageSize)
     );
   }
@@ -224,7 +226,11 @@ export function subscribeToPublicProjects(
   const unsub = onSnapshot(
     q,
     (snap: QuerySnapshot<DocumentData>) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+        const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
       const last = snap.docs[snap.docs.length - 1] || null;
       onUpdate(items, last);
     },
@@ -429,14 +435,17 @@ export function subscribeToHallOfFameProjects(
   const q = query(
     collection(db, "projects"),
     where("hallOfFame", "==", true),
-    orderBy("createdAt", "desc"),
     limit(10)
   );
 
   return onSnapshot(
     q,
     (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+        const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
       onUpdate(items);
     },
     (err) => {
