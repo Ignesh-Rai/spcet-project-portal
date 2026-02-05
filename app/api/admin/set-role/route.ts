@@ -8,39 +8,55 @@ const initAdmin = () => {
 
     try {
         const envKeys = Object.keys(process.env);
-        console.log("Available ENV keys:", envKeys.filter(k => k.includes("FIREBASE") || k.includes("SERVICE")));
 
-        // Try exact match first
+        // 1. Try exact match first (standard name)
         let serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-        // If not found, look for any key that might be the service account
+        // 2. If not found, look for any key that might be the service account, 
+        // but AVOID keys that are likely to be just the public API key
         if (!serviceAccountVar) {
-            const potentialKey = envKeys.find(k =>
-                k.toUpperCase().includes("SERVICE_ACCOUNT") ||
-                k.toUpperCase().includes("FIREBASE_KEY")
-            );
+            const potentialKey = envKeys.find(k => {
+                const upper = k.toUpperCase();
+                return (upper.includes("SERVICE_ACCOUNT") || upper === "FIREBASE_KEY") &&
+                    !upper.includes("API_KEY");
+            });
+
             if (potentialKey) {
                 console.log(`Found potential service account in ENV: ${potentialKey}`);
                 serviceAccountVar = process.env[potentialKey];
             }
         }
 
+        // 3. If we found a variable, try to use it
         if (serviceAccountVar) {
-            const cleanJson = serviceAccountVar.trim();
-            const serviceAccount = JSON.parse(cleanJson);
+            try {
+                const cleanJson = serviceAccountVar.trim();
+                const serviceAccount = JSON.parse(cleanJson);
+
+                // Basic validation: service account JSON must have a private_key
+                if (serviceAccount && serviceAccount.private_key) {
+                    return admin.initializeApp({
+                        credential: admin.credential.cert(serviceAccount),
+                    });
+                } else {
+                    console.warn("ENV service account found but lacks private_key. Falling back...");
+                }
+            } catch (parseError) {
+                console.error("Failed to parse service account from ENV (likely not JSON). Falling back to file:", parseError);
+            }
+        }
+
+        // 4. Fallback to local file if ENV failed or wasn't found
+        const filePath = path.join(process.cwd(), "serviceAccountKey.json");
+        if (fs.existsSync(filePath)) {
+            console.log("Using local serviceAccountKey.json for Firebase Admin");
+            const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
             return admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
             });
-        } else {
-            const filePath = path.join(process.cwd(), "serviceAccountKey.json");
-            if (fs.existsSync(filePath)) {
-                const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
-                return admin.initializeApp({
-                    credential: admin.credential.cert(serviceAccount),
-                });
-            }
         }
-        throw new Error(`No service account credentials found. Available related ENVs: ${envKeys.filter(k => k.includes("FIREBASE")).join(", ")}`);
+
+        throw new Error(`No valid service account credentials found. Checked ENVs and local file.`);
     } catch (error: any) {
         console.error("Firebase Admin initialization error:", error);
         throw error;
