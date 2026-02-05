@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   where,
+  serverTimestamp
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { updateProject } from "@/lib/db/projects";
@@ -31,6 +32,7 @@ interface Project {
   year?: string | number;
   academicYear?: string;
   updatedAt?: any;
+  createdAt?: any;
 }
 
 export default function HoDDashboard() {
@@ -104,55 +106,39 @@ export default function HoDDashboard() {
   useEffect(() => {
     if (!authChecked || !userDept || !auth.currentUser) return;
 
-    let q;
-    // ... (rest of query logic)
-
-    if (activeTab === "hall-of-fame") {
-      q = query(
-        collection(db, "projects"),
-        where("department", "==", userDept),
-        where("hallOfFame", "==", true),
-        orderBy("createdAt", "desc")
-      );
-    } else if (activeTab === "approved") {
-      q = query(
-        collection(db, "projects"),
-        where("department", "==", userDept),
-        where("visibility", "==", "public"),
-        orderBy("createdAt", "desc")
-      );
-    } else {
-      q = query(
-        collection(db, "projects"),
-        where("department", "==", userDept),
-        where("visibility", "==", "pending"),
-        orderBy("createdAt", "desc")
-      );
-    }
+    // Use a simpler query and filter more precisely on the client
+    // This avoids index issues, field naming issues, and missing field issues
+    const q = query(collection(db, "projects"));
 
     const unsub = onSnapshot(q, (snap) => {
-      let items = snap.docs.map((d) => ({
+      const allItems = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       } as Project));
 
-      // Filter out Hall of Fame from Approved list if activeTab is approved
-      if (activeTab === "approved") {
-        items = items.filter(p => !p.hallOfFame);
-      }
+      const items = allItems.filter(p => {
+        // Handle both 'dept' and 'department' fields
+        const pDept = (p.department || p.dept || "").toUpperCase();
+        const targetDept = userDept.toUpperCase();
+
+        if (pDept !== targetDept) return false;
+        if (p.visibility === 'draft') return false;
+
+        // Tab specific visibility filtering
+        if (activeTab === "hall-of-fame") return p.hallOfFame === true;
+        if (activeTab === "approved") return p.visibility === "public" && !p.hallOfFame;
+        return p.visibility === "pending";
+      }).sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
 
       setProjects(items);
       setLoading(false);
     }, (error) => {
-      if (error.code === "permission-denied") {
-        if (auth.currentUser) {
-          console.error("HoD projects listener error:", error);
-        }
-        setProjects([]);
-        setLoading(false);
-      } else {
-        console.error("HoD projects listener error:", error);
-      }
+      console.error("HoD projects listener error:", error);
+      setLoading(false);
     });
 
     return () => unsub();
@@ -162,17 +148,20 @@ export default function HoDDashboard() {
      Actions
      =============================== */
   async function approveProject(projectId: string) {
-    await updateProject(projectId, { visibility: "public" });
+    if (!db) return;
+    await updateProject(projectId, { visibility: "public", updatedAt: serverTimestamp() });
     setSelectedProject(null);
   }
 
   async function rejectProject(projectId: string) {
-    await updateProject(projectId, { visibility: "rejected" });
+    if (!db) return;
+    await updateProject(projectId, { visibility: "rejected", updatedAt: serverTimestamp() });
     setSelectedProject(null);
   }
 
   async function addToHallOfFame(projectId: string) {
-    await updateProject(projectId, { hallOfFame: true });
+    if (!db) return;
+    await updateProject(projectId, { hallOfFame: true, updatedAt: serverTimestamp() });
     setSelectedProject(null);
   }
 
@@ -182,17 +171,18 @@ export default function HoDDashboard() {
   useEffect(() => {
     if (!authChecked || !userDept || !auth.currentUser) return
 
-    const q = query(
-      collection(db, "projects"),
-      where("department", "==", userDept)
-    );
+    // Fetch all non-draft projects and filter in JS for total accuracy
+    const q = query(collection(db, "projects"));
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         const allProjects = snapshot.docs
           .map(d => ({ id: d.id, ...d.data() } as Project))
-          .filter(p => p.visibility !== 'draft');
+          .filter(p => {
+            const pDept = (p.department || p.dept || "").toUpperCase();
+            return pDept === userDept.toUpperCase() && p.visibility !== 'draft';
+          });
 
         const stats = {
           totalProjects: allProjects.length,
@@ -206,11 +196,11 @@ export default function HoDDashboard() {
             return acc
           }, {}),
 
-          recentActivity: allProjects
-            .filter(p => p.visibility !== 'rejected' && p.visibility !== 'draft')
+          recentActivity: [...allProjects]
+            .filter(p => p.visibility !== 'rejected')
             .sort((a: Project, b: Project) => {
-              const aTime = a.updatedAt?.toMillis?.() || 0
-              const bTime = b.updatedAt?.toMillis?.() || 0
+              const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0
+              const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0
               return bTime - aTime
             })
             .slice(0, 5)
@@ -219,21 +209,7 @@ export default function HoDDashboard() {
         setAnalytics(stats)
       },
       (error) => {
-        if (error.code === "permission-denied") {
-          if (auth.currentUser) {
-            console.error("Analytics listener error:", error);
-          }
-          setAnalytics({
-            totalProjects: 0,
-            pendingCount: 0,
-            approvedCount: 0,
-            hallOfFameCount: 0,
-            projectsByType: {},
-            recentActivity: []
-          });
-        } else {
-          console.error("Analytics listener error:", error);
-        }
+        console.error("Analytics listener error:", error);
       }
     )
 
