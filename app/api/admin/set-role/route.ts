@@ -9,13 +9,14 @@ const initAdmin = () => {
     try {
         const env = process.env;
 
-        // 1. Try Individual Components (MOST RELIABLE - Recommended for Vercel/Production)
-        const projectId = env.FIREBASE_ADMIN_PROJECT_ID || env.FIREBASE_PROJECT_ID;
+        // 1. Try Individual Components (MOST RELIABLE)
+        // We use NEXT_PUBLIC_FIREBASE_PROJECT_ID as a fallback for the Project ID
+        const projectId = env.FIREBASE_ADMIN_PROJECT_ID || env.FIREBASE_PROJECT_ID || env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
         const clientEmail = env.FIREBASE_ADMIN_CLIENT_EMAIL || env.FIREBASE_CLIENT_EMAIL;
         const privateKey = env.FIREBASE_ADMIN_PRIVATE_KEY || env.FIREBASE_PRIVATE_KEY;
 
         if (projectId && clientEmail && privateKey) {
-            console.log("Initializing Firebase Admin using individual components");
+            console.log("Initializing Firebase Admin via Individual ENVs");
             return admin.initializeApp({
                 credential: admin.credential.cert({
                     projectId: projectId,
@@ -25,56 +26,46 @@ const initAdmin = () => {
             });
         }
 
-        // 2. Try JSON String (Original fallback)
-        let serviceAccountVar = env.FIREBASE_SERVICE_ACCOUNT_KEY || env.GOOGLE_APPLICATION_CREDENTIALS;
-
-        if (!serviceAccountVar) {
-            const envKeys = Object.keys(env);
-            const potentialKey = envKeys.find(k => {
-                const upper = k.toUpperCase();
-                return (upper.includes("SERVICE_ACCOUNT") || upper.includes("FIREBASE_KEY")) &&
-                    !upper.includes("API_KEY") && !upper.includes("NEXT_PUBLIC");
-            });
-
-            if (potentialKey) {
-                console.log(`Found potential service account in ENV: ${potentialKey}`);
-                serviceAccountVar = env[potentialKey];
-            }
-        }
-
+        // 2. Try JSON String
+        const serviceAccountVar = env.FIREBASE_SERVICE_ACCOUNT_KEY || env.GOOGLE_APPLICATION_CREDENTIALS;
         if (serviceAccountVar) {
             try {
-                const serviceAccount = JSON.parse(serviceAccountVar.trim());
-                if (serviceAccount && (serviceAccount.private_key || serviceAccount.privateKey)) {
+                const sa = JSON.parse(serviceAccountVar.trim());
+                if (sa.private_key || sa.privateKey) {
+                    console.log("Initializing Firebase Admin via JSON ENV");
                     return admin.initializeApp({
-                        credential: admin.credential.cert(serviceAccount),
+                        credential: admin.credential.cert(sa),
                     });
                 }
             } catch (e) {
-                console.error("JSON parse failed, checking individual fallbacks...");
+                console.error("JSON parse failed for service account variable");
             }
         }
 
-        // 3. Last Resort: Local files
-        const localPaths = [
-            path.join(process.cwd(), "serviceAccountKey.json"),
-            path.join(process.cwd(), "service-account.json")
-        ];
-
-        for (const filePath of localPaths) {
-            if (fs.existsSync(filePath)) {
-                const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        // 3. Last Resort: Local files (Works on Localhost)
+        const possibleFiles = ["serviceAccountKey.json", "service-account.json", "config/serviceAccountKey.json"];
+        for (const f of possibleFiles) {
+            const fullPath = path.join(process.cwd(), f);
+            if (fs.existsSync(fullPath)) {
+                console.log(`Initializing Firebase Admin via Local File: ${f}`);
+                const sa = JSON.parse(fs.readFileSync(fullPath, "utf8"));
                 return admin.initializeApp({
-                    credential: admin.credential.cert(serviceAccount),
+                    credential: admin.credential.cert(sa),
                 });
             }
         }
 
-        // If we reach here, tell the user Exactly what is missing
-        const foundKeys = Object.keys(env).filter(k => k.includes("FIREBASE") || k.includes("ADMIN"));
-        throw new Error(`MISSING CREDENTIALS. Please add FIREBASE_ADMIN_PROJECT_ID, CLIENT_EMAIL, and PRIVATE_KEY to Vercel. (Detected: [${foundKeys.join(", ")}])`);
+        // 4. Detailed Error for the UI
+        const detected = Object.keys(env).filter(k => k.includes("FIREBASE") || k.includes("ADMIN"));
+        throw new Error(`
+            ❌ CREDENTIALS NOT LOADED.
+            Checked for: FIREBASE_ADMIN_PRIVATE_KEY and FIREBASE_ADMIN_CLIENT_EMAIL.
+            Found in ENV: [${detected.join(", ")}]
+            Local File Found: ${fs.existsSync(path.join(process.cwd(), "serviceAccountKey.json")) ? "YES" : "NO"}
+            Please ensure you have REDEPLOYED in Vercel after adding variables.
+        `);
     } catch (error: any) {
-        console.error("Firebase Admin initialization error:", error);
+        console.error("Firebase Admin Error:", error.message);
         throw error;
     }
 };
