@@ -10,13 +10,17 @@ const initAdmin = () => {
         const env = process.env;
 
         // 1. Try Individual Components (MOST RELIABLE - Recommended for Vercel/Production)
-        if (env.FIREBASE_ADMIN_PROJECT_ID && env.FIREBASE_ADMIN_CLIENT_EMAIL && env.FIREBASE_ADMIN_PRIVATE_KEY) {
+        const projectId = env.FIREBASE_ADMIN_PROJECT_ID || env.FIREBASE_PROJECT_ID;
+        const clientEmail = env.FIREBASE_ADMIN_CLIENT_EMAIL || env.FIREBASE_CLIENT_EMAIL;
+        const privateKey = env.FIREBASE_ADMIN_PRIVATE_KEY || env.FIREBASE_PRIVATE_KEY;
+
+        if (projectId && clientEmail && privateKey) {
             console.log("Initializing Firebase Admin using individual components");
             return admin.initializeApp({
                 credential: admin.credential.cert({
-                    projectId: env.FIREBASE_ADMIN_PROJECT_ID,
-                    clientEmail: env.FIREBASE_ADMIN_CLIENT_EMAIL,
-                    privateKey: env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n'),
+                    projectId: projectId,
+                    clientEmail: clientEmail,
+                    privateKey: privateKey.replace(/\\n/g, '\n'),
                 }),
             });
         }
