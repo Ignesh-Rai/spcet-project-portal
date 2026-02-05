@@ -203,39 +203,36 @@ export async function fetchMoreProjects(
  */
 export function subscribeToPublicProjects(
   onUpdate: (items: any[], lastDoc: QueryDocumentSnapshot<DocumentData> | null) => void,
-  pageSize = 12,
+  pageSize = 50,
   tech?: string
 ) {
   if (!db) throw new Error("Firestore not initialized");
 
-  let q = query(
-    collection(db, "projects"),
-    where("visibility", "==", "public"),
-    limit(pageSize)
-  );
-
-  if (tech && tech.trim()) {
-    q = query(
-      collection(db, "projects"),
-      where("visibility", "==", "public"),
-      where("technologies", "array-contains", tech.trim()),
-      limit(pageSize)
-    );
-  }
+  // Fetch all to ensure we don't hit index errors or missing doc issues
+  const q = query(collection(db, "projects"));
 
   const unsub = onSnapshot(
     q,
     (snap: QuerySnapshot<DocumentData>) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+
+      const filtered = all.filter(p => {
+        const isPublic = p.visibility === "public" || p.hallOfFame === true;
+        if (!isPublic) return false;
+        if (tech && tech.trim()) {
+          return (p.technologies || []).some((t: string) => t.toLowerCase() === tech.trim().toLowerCase());
+        }
+        return true;
+      }).sort((a, b) => {
         const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0;
         const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0;
         return bTime - aTime;
       });
-      const last = snap.docs[snap.docs.length - 1] || null;
-      onUpdate(items, last);
+
+      onUpdate(filtered.slice(0, pageSize), snap.docs[snap.docs.length - 1] || null);
     },
     (err) => {
-      console.error("subscribeToPublicProjects snapshot error:", err);
+      console.error("subscribeToPublicProjects error:", err);
       onUpdate([], null);
     }
   );
@@ -432,25 +429,23 @@ export function subscribeToHallOfFameProjects(
 ) {
   if (!db) throw new Error("Firestore not initialized");
 
-  const q = query(
-    collection(db, "projects"),
-    where("hallOfFame", "==", true),
-    limit(10)
-  );
+  const q = query(collection(db, "projects"));
 
   return onSnapshot(
     q,
     (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
-        const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0;
-        const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0;
-        return bTime - aTime;
-      });
+      const items = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() } as any))
+        .filter(p => p.hallOfFame === true)
+        .sort((a, b) => {
+          const aTime = a.createdAt?.toMillis?.() || a.updatedAt?.toMillis?.() || 0;
+          const bTime = b.createdAt?.toMillis?.() || b.updatedAt?.toMillis?.() || 0;
+          return bTime - aTime;
+        });
       onUpdate(items);
     },
     (err) => {
       console.error("subscribeToHallOfFameProjects error:", err);
-      // Fail gracefully
       onUpdate([]);
     }
   );
