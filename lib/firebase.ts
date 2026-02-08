@@ -14,6 +14,8 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!
 };
 
+console.log("[Firebase] Initializing for Project ID:", firebaseConfig.projectId);
+
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
