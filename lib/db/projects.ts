@@ -219,7 +219,6 @@ export function subscribeToPublicProjects(
   const unsub = onSnapshot(
     q,
     (snap: QuerySnapshot<DocumentData>) => {
-      console.log(`[Firestore] subscribeToPublicProjects fetched ${snap.size} raw docs`);
       const all = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
 
       const filtered = all.filter(p => {
@@ -236,7 +235,6 @@ export function subscribeToPublicProjects(
         return bTime - aTime;
       });
 
-      console.log(`[Firestore] filtered to ${filtered.length} public/HoF projects`);
       onUpdate(filtered.slice(0, pageSize), snap.docs[snap.docs.length - 1] || null);
     },
     (err) => {

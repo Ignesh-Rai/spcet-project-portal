@@ -111,8 +111,6 @@ export default function HoDDashboard() {
     const q = query(collection(db, "projects"), where("visibility", "!=", "draft"));
 
     const unsub = onSnapshot(q, (snap) => {
-      console.log(`[HoD Dash] Raw projects fetched: ${snap.size}`);
-
       const allItems = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
@@ -135,7 +133,6 @@ export default function HoDDashboard() {
         return bTime - aTime;
       });
 
-      console.log(`[HoD Dash] Filtered projects for ${userDept}/${activeTab}: ${items.length}`);
       setProjects(items);
       setLoading(false);
     }, (error) => {
