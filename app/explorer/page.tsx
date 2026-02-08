@@ -215,11 +215,36 @@ function ExplorerContent() {
                   <Link
                     key={p.id}
                     href={`/explorer/${p.id}`}
-                    className="bg-yellow-50/30 border-l-4 border-yellow-500 p-5 rounded-lg shadow-sm hover:shadow-md transition block border border-yellow-100"
+                    className="bg-yellow-50/30 border-l-5 border-yellow-500 p-4 pb-3 rounded-lg shadow-sm hover:shadow-md transition block border border-yellow-100"
                   >
-                    <h3 className="font-bold text-lg text-gray-900 line-clamp-1">{p.title}</h3>
-                    <p className="text-yellow-700 font-bold text-sm mt-1">{p.dept}</p>
-                    <p className="text-xs text-yellow-600 mt-0.5 font-medium">{p.year}</p>
+                    <div className="flex flex-col justify-between h-full">
+                      <h3 className="font-bold text-lg text-gray-900 line-clamp-1">{p.title}</h3>
+
+                      <div className="flex justify-between items-end mt-4 pt-2 border-t border-yellow-200/50">
+                        <div>
+                          <p className="text-yellow-700 font-bold text-sm">{p.dept}</p>
+                          <p className="text-[10px] text-yellow-600 font-medium">{p.year}</p>
+                        </div>
+
+                        {/* Students Avatars in Hall of Fame (Right Bottom) */}
+                        <div className="flex -space-x-2">
+                          {p.students?.slice(0, 3).map((s: any, i: number) => (
+                            <div
+                              key={i}
+                              title={s.name}
+                              className="w-6 h-6 rounded-full bg-yellow-100 border-1 border-yellow-200 flex items-center justify-center text-[10px] font-black text-yellow-700 shadow-sm"
+                            >
+                              {s.name?.charAt(0) || "S"}
+                            </div>
+                          ))}
+                          {p.students?.length > 3 && (
+                            <div className="w-6 h-6 rounded-full bg-yellow-50 border-1 border-yellow-200 flex items-center justify-center text-[10px] font-bold text-yellow-600 shadow-sm">
+                              +{p.students.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </Link>
                 ))}
             </div>
@@ -238,25 +263,46 @@ function ExplorerContent() {
             <Link
               key={p.id}
               href={`/explorer/${p.id}`}
-              className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition flex flex-col justify-between border border-gray-100"
+              className="bg-white p-4 pb-3 rounded-lg shadow hover:shadow-lg transition flex flex-col justify-between border border-blue-300"
             >
               <div>
-                <h3 className="font-bold text-lg text-gray-900 line-clamp-2">{p.title}</h3>
-                <p className="text-blue-600 font-semibold text-sm mt-1">{p.dept}</p>
+                <h3 className="font-bold text-lg text-gray-900 line-clamp-1">{p.title}</h3>
+                <p className="text-blue-600 font-semibold text-sm mt-0.5">{p.dept}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{p.year}</p>
               </div>
-              <div className="flex flex-wrap gap-2 mt-4">
+
+              <div className="flex flex-wrap items-center gap-2 mt-3">
                 {p.tech.slice(0, 3).map((t: string) => (
                   <span
                     key={t}
-                    className="text-[10px] uppercase tracking-wider font-bold bg-gray-50 text-gray-600 px-2 py-1 rounded-md border border-gray-200"
+                    className="text-[10px] uppercase font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg border border-blue-100"
                   >
                     {t}
                   </span>
                 ))}
                 {p.tech.length > 3 && (
-                  <span className="text-[10px] font-bold text-gray-400 self-center">+{p.tech.length - 3}</span>
+                  <span className="text-[10px] font-bold text-blue-400 ml-1">+{p.tech.length - 3}</span>
                 )}
+              </div>
+
+              {/* Students (Right Bottom) */}
+              <div className="mt-2 pt-2 border-t border-gray-50 flex justify-end">
+                <div className="flex -space-x-2">
+                  {p.students?.slice(0, 3).map((s: any, i: number) => (
+                    <div
+                      key={i}
+                      title={s.name}
+                      className="w-6 h-6 rounded-full bg-gray-100 border-2 border-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600 shadow-sm"
+                    >
+                      {s.name?.charAt(0) || "S"}
+                    </div>
+                  ))}
+                  {p.students?.length > 3 && (
+                    <div className="w-6 h-6 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-400 shadow-sm">
+                      +{p.students.length - 3}
+                    </div>
+                  )}
+                </div>
               </div>
             </Link>
           ))}

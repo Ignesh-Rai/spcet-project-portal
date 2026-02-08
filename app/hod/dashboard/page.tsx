@@ -140,6 +140,9 @@ export default function HoDDashboard() {
       setLoading(false);
     }, (error) => {
       console.error("[HoD Dash] projects listener error:", error);
+      if (error.code === 'permission-denied') {
+        alert("Permission denied. Try logging out and back in to refresh your HoD status.");
+      }
       setLoading(false);
     });
 
@@ -212,6 +215,10 @@ export default function HoDDashboard() {
       },
       (error) => {
         console.error("Analytics listener error:", error);
+        if (error.code === 'permission-denied') {
+          // Silently fail but log it, maybe don't alert twice if the other listener also alerts
+          console.warn("Analytics permission denied - role might not be refreshed.");
+        }
       }
     )
 

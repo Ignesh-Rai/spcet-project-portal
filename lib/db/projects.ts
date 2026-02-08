@@ -20,6 +20,7 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
   QuerySnapshot,
+  or,
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
@@ -208,8 +209,12 @@ export function subscribeToPublicProjects(
 ) {
   if (!db) throw new Error("Firestore not initialized");
 
-  // Fetch all to ensure we don't hit index errors or missing doc issues
-  const q = query(collection(db, "projects"));
+  // Use a query that matches security rules to avoid 'Missing or insufficient permissions'
+  // We allow public visibility OR hallOfFame projects
+  const q = query(
+    collection(db, "projects"),
+    or(where("visibility", "==", "public"), where("hallOfFame", "==", true))
+  );
 
   const unsub = onSnapshot(
     q,
@@ -217,6 +222,7 @@ export function subscribeToPublicProjects(
       const all = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
 
       const filtered = all.filter(p => {
+        // Double check in client for extra safety
         const isPublic = p.visibility === "public" || p.hallOfFame === true;
         if (!isPublic) return false;
         if (tech && tech.trim()) {
@@ -429,7 +435,11 @@ export function subscribeToHallOfFameProjects(
 ) {
   if (!db) throw new Error("Firestore not initialized");
 
-  const q = query(collection(db, "projects"));
+  // Filter in query to match security rules
+  const q = query(
+    collection(db, "projects"),
+    where("hallOfFame", "==", true)
+  );
 
   return onSnapshot(
     q,

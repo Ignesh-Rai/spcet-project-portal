@@ -152,12 +152,21 @@ function ProjectFormContent() {
       }
       setCurrentUser(u)
 
-      // Fetch department from claims
+      // Fetch department from claims & firestore
       try {
         const token = await getIdTokenResult(u, true) // FORCE REFRESH to get latest claims
-        let dept = token.claims.department as string
+        let dept = (token.claims.department as string || "").trim().toUpperCase();
 
-        // Fallback: If claim is missing, try to infer from email (e.g. name.cse@spcet.ac.in)
+        // Fallback 1: FireStore User Document
+        if (!dept) {
+          const userDoc = await getDoc(doc(db, "users", u.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            dept = (userData.department || userData.dept || "").trim().toUpperCase();
+          }
+        }
+
+        // Fallback 2: Infer from email
         if (!dept && u.email) {
           const emailLower = u.email.toLowerCase()
           const deptCodes = ["CSE", "IT", "AIDS", "CSBS", "ECE", "EEE", "BIOTECH", "MECH", "CIVIL", "CHEM", "MBA"]
@@ -166,15 +175,15 @@ function ProjectFormContent() {
             emailLower.includes(`@${code.toLowerCase()}.`) ||
             emailLower.split('@')[0].endsWith(`.${code.toLowerCase()}`)
           )
-          if (found) dept = found
+          if (found) dept = found.toUpperCase();
         }
 
         if (dept) {
-          setDepartment(dept.toUpperCase()) // Force override
+          setDepartment(dept)
           setIsDeptLocked(true)
         }
       } catch (err) {
-        console.error("Error fetching user claims:", err)
+        console.error("Error fetching user info:", err)
       }
     })
     return () => unsub()
@@ -201,7 +210,10 @@ function ProjectFormContent() {
 
   function executeClearAll() {
     setTitle("")
-    setDepartment("")
+    // Ensure department stays if it's supposed to be locked
+    if (!isDeptLocked) {
+      setDepartment("")
+    }
     setAcademicYear("")
     setProjectType("")
     setTechStack("")
@@ -822,9 +834,12 @@ function ProjectFormContent() {
               </label>
               <select
                 id="project-dept"
-                className={`p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all ${isDeptLocked ? 'bg-blue-50/50 border-blue-200 cursor-not-allowed font-bold text-blue-800' : ''}`}
+                className={`p-3 bg-white border-2 rounded-xl text-gray-900 outline-none transition-all ${isDeptLocked
+                  ? 'border-blue-500 ring-4 ring-blue-500/10 bg-blue-50/5 pointer-events-none font-bold text-blue-900 cursor-default'
+                  : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500'
+                  }`}
                 value={department}
-                onChange={e => setDepartment(e.target.value)}
+                onChange={e => !isDeptLocked && setDepartment(e.target.value)}
                 disabled={isDeptLocked}
               >
                 <option value="">Select Department</option>

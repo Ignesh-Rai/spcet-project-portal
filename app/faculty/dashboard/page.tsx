@@ -301,10 +301,10 @@ function DashboardContent() {
   /* ---------- UI Helpers ---------- */
   function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
     const colors: any = {
-      blue: "bg-blue-50 text-blue-700 border-blue-100",
-      orange: "bg-orange-50 text-orange-700 border-orange-100",
-      green: "bg-green-50 text-green-700 border-green-100",
-      red: "bg-red-50 text-red-700 border-red-100",
+      blue: "bg-blue-100 text-blue-700 border-blue-100",
+      orange: "bg-orange-100 text-orange-700 border-orange-100",
+      green: "bg-green-100 text-green-700 border-green-100",
+      red: "bg-red-100 text-red-700 border-red-100",
     };
     return (
       <div className={`p-4 rounded-xl border ${colors[color] || colors.blue} flex items-center justify-between`}>
