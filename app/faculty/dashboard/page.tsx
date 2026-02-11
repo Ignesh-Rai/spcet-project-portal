@@ -9,6 +9,8 @@ import {
   FileText, Hourglass, Trophy, Search, Trash2,
   CheckCircle2, AlertCircle, Plus, Pencil, Send, FolderOpen, ChevronRight
 } from "lucide-react"
+import NotificationModal from "@/components/ui/NotificationModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import {
   listenToFacultyDrafts,
   updateProject,
@@ -34,45 +36,6 @@ interface Project {
   updatedAt: any;
 }
 
-interface ConfirmModalProps {
-  open: boolean;
-  title?: string;
-  message?: string;
-  onConfirm: () => Promise<void>;
-  onCancel: () => void;
-  loading: boolean;
-}
-
-/* ===============================
-   Confirmation Modal
-   =============================== */
-function ConfirmModal({ open, title, message, onConfirm, onCancel, loading }: ConfirmModalProps) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">{title}</h2>
-        <p className="text-gray-600 mb-6">{message}</p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {loading ? "Processing..." : "Confirm"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function DashboardContent() {
   const router = useRouter();
@@ -92,8 +55,21 @@ function DashboardContent() {
   const [loadingPublished, setLoadingPublished] = useState(true);
   const [loadingRejected, setLoadingRejected] = useState(true);
 
-  const [modal, setModal] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // UI Feedback State (Modals)
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
+    open: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: () => { }
+  });
 
   // Search and Pagination
   const [searchQuery, setSearchQuery] = useState("");
@@ -247,20 +223,34 @@ function DashboardContent() {
 
   /* ---------- Actions ---------- */
   function confirmAction(title: string, message: string, action: () => Promise<void>) {
-    setModal({ title, message, action });
-  }
-
-  async function runAction() {
-    if (!modal) return;
-    setActionLoading(true);
-    try {
-      await modal.action();
-    } catch (err) {
-      console.error("Action error:", err);
-    } finally {
-      setActionLoading(false);
-      setModal(null);
-    }
+    setConfirmModal({
+      open: true,
+      title,
+      message,
+      onConfirm: async () => {
+        setActionLoading(true);
+        try {
+          await action();
+          setNotification({
+            open: true,
+            title: "Success",
+            message: "Action completed successfully.",
+            type: "success"
+          });
+        } catch (err) {
+          console.error("Action error:", err);
+          setNotification({
+            open: true,
+            title: "Error",
+            message: "Failed to perform requested action.",
+            type: "error"
+          });
+        } finally {
+          setActionLoading(false);
+          setConfirmModal(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
   }
 
   /* ---------- Filter and Pagination Logic ---------- */
@@ -378,13 +368,21 @@ function DashboardContent() {
 
   return (
     <>
+      <NotificationModal
+        open={notification.open}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+      />
+
       <ConfirmModal
-        open={!!modal}
-        title={modal?.title}
-        message={modal?.message}
-        loading={actionLoading}
-        onConfirm={runAction}
-        onCancel={() => setModal(null)}
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+        danger={confirmModal.title.toLowerCase().includes("delete")}
       />
 
       <div className="min-h-screen bg-gray-50 pb-20 pt-12">

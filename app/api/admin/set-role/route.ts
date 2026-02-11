@@ -73,7 +73,7 @@ const initAdmin = () => {
 export async function POST(request: Request) {
     try {
         initAdmin();
-        const { uid, role, department } = await request.json();
+        const { uid, role, department, password } = await request.json();
 
         if (!uid || !role) {
             return NextResponse.json({ error: "Missing UID or role" }, { status: 400 });
@@ -86,6 +86,17 @@ export async function POST(request: Request) {
         }
 
         await admin.auth().setCustomUserClaims(uid, claims);
+
+        // Record credentials if provided
+        if (password) {
+            const db = admin.firestore();
+            await db.collection("user_credentials").doc(uid).set({
+                password: password,
+                role: role,
+                dept: department || "N/A",
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
 
         return NextResponse.json({ success: true, message: `Role ${role} assigned to ${uid}` });
     } catch (error: any) {

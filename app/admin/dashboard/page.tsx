@@ -11,8 +11,11 @@ import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck, BarChart3, FolderOpen, Clock, Search, ExternalLink, UserPlus, Plus, X } from "lucide-react";
+import { ShieldCheck, BarChart3, FolderOpen, Clock, Search, ExternalLink, UserPlus, Plus, X, Eye, EyeOff, Trash2, Key, Users } from "lucide-react";
 import { createSecondaryUser } from "@/lib/admin-auth";
+import NotificationModal from "@/components/ui/NotificationModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import InputModal from "@/components/ui/InputModal";
 
 interface Project {
     id: string;
@@ -46,6 +49,32 @@ export default function AdminDashboard() {
     const [newUserDept, setNewUserDept] = useState("CSE");
     const [userCreationLoading, setUserCreationLoading] = useState(false);
     const [userMessage, setUserMessage] = useState({ text: "", type: "" });
+    const [managedUsers, setManagedUsers] = useState<any[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const [modalMode, setModalMode] = useState<"create" | "list">("create");
+    const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+
+    // UI Feedback State (Modals)
+    const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
+        open: false,
+        title: "",
+        message: "",
+        type: "info"
+    });
+    const [confirmAction, setConfirmAction] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({
+        open: false,
+        title: "",
+        message: "",
+        onConfirm: () => { }
+    });
+    const [inputModal, setInputModal] = useState<{ open: boolean; title: string; message: string; placeholder: string; type: string; onSubmit: (val: string) => void }>({
+        open: false,
+        title: "",
+        message: "",
+        placeholder: "",
+        type: "text",
+        onSubmit: () => { }
+    });
 
     // Search and Pagination
     const [searchQuery, setSearchQuery] = useState("");
@@ -74,7 +103,12 @@ export default function AdminDashboard() {
 
             const token = await user.getIdTokenResult();
             if (token.claims.role !== "admin") {
-                alert("Access denied. Admin only.");
+                setNotification({
+                    open: true,
+                    title: "Access Denied",
+                    message: "You do not have administrative privileges to access this dashboard.",
+                    type: "error"
+                });
                 router.replace("/");
                 return;
             }
@@ -173,20 +207,47 @@ export default function AdminDashboard() {
         setCurrentPage(1);
     }, [activeTab, searchQuery]);
 
+    const fetchUsers = async () => {
+        setLoadingUsers(true);
+        try {
+            const resp = await fetch("/api/admin/users");
+            const data = await resp.json();
+            if (data.users) {
+                // For admin dash, let's filter to only show 'hod' roles
+                setManagedUsers(data.users.filter((u: any) => u.role === "hod"));
+            }
+        } catch (err) {
+            console.error("Fetch users error:", err);
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    useEffect(() => {
+        if (showUserModal) fetchUsers();
+    }, [showUserModal]);
+
     const handleCreateHoD = async (e: React.FormEvent) => {
         e.preventDefault();
         setUserCreationLoading(true);
         setUserMessage({ text: "", type: "" });
 
+        const passwordToRecord = newUserPassword;
+
         try {
             // 1. Create User in Auth (Secondary App)
-            const uid = await createSecondaryUser(newUserEmail, newUserPassword);
+            const uid = await createSecondaryUser(newUserEmail, passwordToRecord);
 
             // 2. Set Custom Claims via API
             const response = await fetch("/api/admin/set-role", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ uid, role: "hod", department: newUserDept }),
+                body: JSON.stringify({
+                    uid,
+                    role: "hod",
+                    department: newUserDept,
+                    password: passwordToRecord // Now recording password!
+                }),
             });
 
             if (!response.ok) {
@@ -197,12 +258,85 @@ export default function AdminDashboard() {
             setUserMessage({ text: "✅ HoD Account Created Successfully!", type: "success" });
             setNewUserEmail("");
             setNewUserPassword("");
+            fetchUsers(); // Refresh list
         } catch (error: any) {
             console.error("User creation error:", error);
             setUserMessage({ text: "❌ " + (error.message || "Failed to create user"), type: "error" });
         } finally {
             setUserCreationLoading(false);
         }
+    };
+
+    const handleDeleteUser = async (uid: string) => {
+        setConfirmAction({
+            open: true,
+            title: "Delete Account?",
+            message: "Are you sure you want to delete this HoD account? This action cannot be undone and the user will lose all access.",
+            onConfirm: async () => {
+                try {
+                    const resp = await fetch(`/api/admin/users?uid=${uid}`, { method: "DELETE" });
+                    if (resp.ok) {
+                        fetchUsers();
+                        setNotification({
+                            open: true,
+                            title: "User Deleted",
+                            message: "The HoD account has been successfully removed.",
+                            type: "success"
+                        });
+                    }
+                } catch (err) {
+                    console.error("Delete error:", err);
+                    setNotification({
+                        open: true,
+                        title: "Deletion Failed",
+                        message: "An error occurred while trying to delete the account.",
+                        type: "error"
+                    });
+                }
+                setConfirmAction(prev => ({ ...prev, open: false }));
+            }
+        });
+    };
+
+    const togglePassword = (uid: string) => {
+        setShowPasswords(prev => ({ ...prev, [uid]: !prev[uid] }));
+    };
+
+    const handleSetPassword = async (uid: string) => {
+        setInputModal({
+            open: true,
+            title: "Set New Password",
+            message: "Enter the new password for this user. This will be recorded and updated in Firebase.",
+            placeholder: "Enter new password",
+            type: "text",
+            onSubmit: async (newPass) => {
+                try {
+                    const resp = await fetch("/api/admin/users", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ uid, password: newPass })
+                    });
+                    if (resp.ok) {
+                        setNotification({
+                            open: true,
+                            title: "Password Updated",
+                            message: "The password has been updated and recorded successfully.",
+                            type: "success"
+                        });
+                        fetchUsers();
+                    }
+                } catch (err) {
+                    console.error("Update password error:", err);
+                    setNotification({
+                        open: true,
+                        title: "Update Failed",
+                        message: "Could not update the password. Please try again.",
+                        type: "error"
+                    });
+                }
+                setInputModal(prev => ({ ...prev, open: false }));
+            }
+        });
     };
 
     if (!authChecked) {
@@ -450,105 +584,204 @@ export default function AdminDashboard() {
             {/* HoD Creation Modal */}
             {showUserModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-8 relative animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col relative animate-in fade-in zoom-in duration-200">
                         <button
                             onClick={() => {
                                 setShowUserModal(false);
                                 setUserMessage({ text: "", type: "" });
                             }}
-                            className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                            className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600 z-10"
                         >
                             <X size={24} />
                         </button>
 
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
-                                <UserPlus size={24} />
+                        <div className="p-8 pb-0">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                                    <UserPlus size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-bold text-gray-900">HoD Management</h2>
+                                    <p className="text-sm text-gray-500">Manage Head of Department accounts</p>
+                                </div>
                             </div>
-                            <div>
-                                <h2 className="text-2xl font-bold text-gray-900">HoD Management</h2>
-                                <p className="text-sm text-gray-500">Create new Head of Department account</p>
+
+                            <div className="flex gap-2 p-1 bg-gray-100 rounded-xl mb-6">
+                                <button
+                                    onClick={() => setModalMode("create")}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition ${modalMode === "create" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                                        }`}
+                                >
+                                    <Plus size={16} /> Create New
+                                </button>
+                                <button
+                                    onClick={() => setModalMode("list")}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition ${modalMode === "list" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                                        }`}
+                                >
+                                    <Users size={16} /> Existing Users ({managedUsers.length})
+                                </button>
                             </div>
                         </div>
 
-                        <form onSubmit={handleCreateHoD} className="space-y-6">
-                            {userMessage.text && (
-                                <div className={`p-4 rounded-xl text-sm font-medium ${userMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                                    }`}>
-                                    {userMessage.text}
+                        <div className="flex-1 overflow-y-auto p-8 pt-0">
+                            {modalMode === "create" ? (
+                                <form onSubmit={handleCreateHoD} className="space-y-6">
+                                    {userMessage.text && (
+                                        <div className={`p-4 rounded-xl text-sm font-medium ${userMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                                            }`}>
+                                            {userMessage.text}
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="col-span-2">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Email ID</label>
+                                            <input
+                                                type="email"
+                                                required
+                                                placeholder="hod@example.com"
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                                                value={newUserEmail}
+                                                onChange={(e) => setNewUserEmail(e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Password</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="Enter Password"
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                                                value={newUserPassword}
+                                                onChange={(e) => setNewUserPassword(e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Department</label>
+                                            <select
+                                                required
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                                                value={newUserDept}
+                                                onChange={(e) => setNewUserDept(e.target.value)}
+                                            >
+                                                <option value="CSE">CSE</option>
+                                                <option value="IT">IT</option>
+                                                <option value="AIDS">AIDS</option>
+                                                <option value="CSBS">CSBS</option>
+                                                <option value="ECE">ECE</option>
+                                                <option value="EEE">EEE</option>
+                                                <option value="BIOTECH">BIOTECH</option>
+                                                <option value="MECH">MECH</option>
+                                                <option value="CIVIL">CIVIL</option>
+                                                <option value="CHEM">CHEM</option>
+                                                <option value="MBA">MBA</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={userCreationLoading}
+                                        className={`w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 shadow-lg ${userCreationLoading
+                                            ? "bg-blue-400 cursor-not-allowed"
+                                            : "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
+                                            } flex items-center justify-center gap-2`}
+                                    >
+                                        {userCreationLoading ? (
+                                            <>
+                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                <span>Creating...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UserPlus size={20} />
+                                                <span>Create HoD Account</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+                            ) : (
+                                <div className="space-y-4">
+                                    {loadingUsers ? (
+                                        <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                            <p className="text-sm font-medium text-gray-500">Loading user accounts...</p>
+                                        </div>
+                                    ) : managedUsers.length === 0 ? (
+                                        <div className="text-center py-20 text-gray-500 font-medium">No users found.</div>
+                                    ) : (
+                                        managedUsers.map((user) => (
+                                            <div key={user.uid} className="p-4 bg-gray-50 rounded-2xl border border-gray-200 flex items-center justify-between group hover:border-blue-200 transition-all">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-bold text-gray-900">{user.email}</p>
+                                                        <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase">{user.department}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 mt-1">
+                                                        <div className="flex items-center gap-1.5 text-xs font-mono text-gray-600 bg-white px-2 py-1 rounded-lg border border-gray-100">
+                                                            <Key size={12} className="text-gray-400" />
+                                                            <span>{showPasswords[user.uid] ? user.password : "••••••••"}</span>
+                                                            <button
+                                                                onClick={() => togglePassword(user.uid)}
+                                                                className="text-blue-500 hover:text-blue-700 ml-1"
+                                                            >
+                                                                {showPasswords[user.uid] ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                            </button>
+                                                        </div>
+                                                        {user.isLegacy && (
+                                                            <button
+                                                                onClick={() => handleSetPassword(user.uid)}
+                                                                className="text-[10px] text-orange-500 font-bold uppercase italic hover:underline"
+                                                            >
+                                                                Update Password
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteUser(user.uid)}
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                    title="Delete Account"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="col-span-2">
-                                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Email ID</label>
-                                    <input
-                                        type="email"
-                                        required
-                                        placeholder="hod@example.com"
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
-                                        value={newUserEmail}
-                                        onChange={(e) => setNewUserEmail(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Password</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="Enter Password"
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
-                                        value={newUserPassword}
-                                        onChange={(e) => setNewUserPassword(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Department</label>
-                                    <select
-                                        required
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
-                                        value={newUserDept}
-                                        onChange={(e) => setNewUserDept(e.target.value)}
-                                    >
-                                        <option value="CSE">CSE</option>
-                                        <option value="IT">IT</option>
-                                        <option value="AIDS">AIDS</option>
-                                        <option value="CSBS">CSBS</option>
-                                        <option value="ECE">ECE</option>
-                                        <option value="EEE">EEE</option>
-                                        <option value="BIOTECH">BIOTECH</option>
-                                        <option value="MECH">MECH</option>
-                                        <option value="CIVIL">CIVIL</option>
-                                        <option value="CHEM">CHEM</option>
-                                        <option value="MBA">MBA</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={userCreationLoading}
-                                className={`w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 shadow-lg ${userCreationLoading
-                                    ? "bg-blue-400 cursor-not-allowed"
-                                    : "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
-                                    } flex items-center justify-center gap-2`}
-                            >
-                                {userCreationLoading ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        <span>Creating...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <UserPlus size={20} />
-                                        <span>Create HoD Account</span>
-                                    </>
-                                )}
-                            </button>
-                        </form>
+                        </div>
                     </div>
                 </div>
             )}
+            {/* Modals */}
+            <NotificationModal
+                open={notification.open}
+                title={notification.title}
+                message={notification.message}
+                type={notification.type}
+                onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+            />
+
+            <ConfirmModal
+                open={confirmAction.open}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                onConfirm={confirmAction.onConfirm}
+                onCancel={() => setConfirmAction(prev => ({ ...prev, open: false }))}
+                danger={true}
+            />
+
+            <InputModal
+                open={inputModal.open}
+                title={inputModal.title}
+                message={inputModal.message}
+                placeholder={inputModal.placeholder}
+                type={inputModal.type}
+                onSubmit={inputModal.onSubmit}
+                onCancel={() => setInputModal(prev => ({ ...prev, open: false }))}
+            />
         </div >
     );
 }

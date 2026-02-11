@@ -204,16 +204,19 @@ export default function ProjectDetailPage() {
                 <h2 className="text-xl font-bold text-gray-900">Project Overview</h2>
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-8">
-                {project.technologies?.map((tech, i) => (
-                  <span key={i} className="px-3 py-1 bg-gray-50 text-gray-700 rounded-lg text-sm font-bold border border-gray-200">
-                    {tech}
-                  </span>
-                ))}
+              <div className="mb-8">
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Technologies Used</h3>
+                <div className="flex flex-wrap gap-2">
+                  {project.technologies?.map((tech, i) => (
+                    <span key={i} className="px-3 py-1 bg-gray-50 text-gray-700 rounded-lg text-sm font-bold border border-blue-300">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               <div className="prose max-w-none text-gray-800 leading-relaxed mb-8">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Abstract</h3>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Abstract</h3>
                 <p className="whitespace-pre-wrap">{project.abstract}</p>
               </div>
 

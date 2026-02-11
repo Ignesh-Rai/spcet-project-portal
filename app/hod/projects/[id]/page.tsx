@@ -8,6 +8,7 @@ import { db, auth } from "@/lib/firebase"
 import { updateProject } from "@/lib/db/projects"
 import { onAuthStateChanged } from "firebase/auth"
 import { ArrowLeft, CheckCircle2, AlertCircle, Trophy, ExternalLink, Github, FileText, Send, Trash2, Layout } from "lucide-react"
+import NotificationModal from "@/components/ui/NotificationModal"
 
 export default function HoDProjectReview() {
     const params = useParams() as { id?: string }
@@ -102,7 +103,15 @@ export default function HoDProjectReview() {
 
     async function handleReject() {
         if (!project) return
-        if (!feedback.trim()) return alert("Please provide feedback for rejection.")
+        if (!feedback.trim()) {
+            setNotification({
+                open: true,
+                title: "Feedback Required",
+                message: "Please provide a reason for rejection in the feedback field.",
+                type: "error"
+            });
+            return;
+        }
         setIsSubmitting(true)
         try {
             await updateProject(project.id, {
@@ -227,10 +236,13 @@ export default function HoDProjectReview() {
                         </div>
                         <div className="p-8">
                             <h2 className="text-3xl font-bold text-gray-900 mb-4">{project.title}</h2>
-                            <div className="flex flex-wrap gap-2 mb-6">
-                                {project.technologies?.map((tech: string, i: number) => (
-                                    <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100">{tech}</span>
-                                ))}
+                            <div className="mb-6">
+                                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Technologies Used</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {project.technologies?.map((tech: string, i: number) => (
+                                        <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100">{tech}</span>
+                                    ))}
+                                </div>
                             </div>
                             <div className="prose max-w-none text-gray-600 leading-relaxed text-sm">
                                 <h3 className="text-lg font-bold text-gray-900 mb-2 underline decoration-blue-500 decoration-2 underline-offset-4">Abstract</h3>
@@ -435,34 +447,3 @@ export default function HoDProjectReview() {
     )
 }
 
-/* ===============================
-   Notification Modal (Toast Replacement)
-   =============================== */
-function NotificationModal({ open, title, message, type, onClose }: any) {
-    if (!open) return null;
-    const colors = {
-        success: "bg-green-50 text-green-700 border-green-100",
-        error: "bg-red-50 text-red-700 border-red-100",
-        info: "bg-blue-50 text-blue-700 border-blue-100",
-    } as any;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all p-4">
-            <div className={`bg-white rounded-xl shadow-2xl w-full max-w-sm p-8 border border-gray-100 text-center animate-in zoom-in-95 duration-200`}>
-                <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-6 ${colors[type]}`}>
-                    {type === 'success' && <CheckCircle2 size={32} />}
-                    {type === 'error' && <AlertCircle size={32} />}
-                    {type === 'info' && <AlertCircle size={32} className="rotate-180" />}
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
-                <p className="text-gray-500 mb-8">{message}</p>
-                <button
-                    onClick={onClose}
-                    className="w-full py-3 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors shadow-lg"
-                >
-                    Dismiss
-                </button>
-            </div>
-        </div>
-    );
-}

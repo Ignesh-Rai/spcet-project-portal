@@ -14,8 +14,11 @@ import { updateProject } from "@/lib/db/projects";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, BarChart3, FolderOpen, Clock, Search, UserPlus, Plus, X } from "lucide-react";
+import { User, BarChart3, FolderOpen, Clock, Search, UserPlus, Plus, X, Eye, EyeOff, Trash2, Key, Users, MenuIcon, UserCircle } from "lucide-react";
 import { createSecondaryUser } from "@/lib/admin-auth";
+import NotificationModal from "@/components/ui/NotificationModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import InputModal from "@/components/ui/InputModal";
 
 interface Project {
   id: string;
@@ -50,6 +53,32 @@ export default function HoDDashboard() {
   const [newFacultyPassword, setNewFacultyPassword] = useState("");
   const [facultyCreationLoading, setFacultyCreationLoading] = useState(false);
   const [facultyMessage, setFacultyMessage] = useState({ text: "", type: "" });
+  const [managedUsers, setManagedUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "list">("create");
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+
+  // UI Feedback State (Modals)
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
+    open: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
+  const [confirmAction, setConfirmAction] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: () => { }
+  });
+  const [inputModal, setInputModal] = useState<{ open: boolean; title: string; message: string; placeholder: string; type: string; onSubmit: (val: string) => void }>({
+    open: false,
+    title: "",
+    message: "",
+    placeholder: "",
+    type: "text",
+    onSubmit: () => { }
+  });
 
   // Search and Pagination
   const [searchQuery, setSearchQuery] = useState("");
@@ -80,7 +109,12 @@ export default function HoDDashboard() {
 
       const token = await user.getIdTokenResult();
       if (token.claims.role !== "hod") {
-        alert("Access denied. HoD only.");
+        setNotification({
+          open: true,
+          title: "Access Denied",
+          message: "You do not have the required permissions to access this dashboard.",
+          type: "error"
+        });
         router.replace("/");
         return;
       }
@@ -88,7 +122,12 @@ export default function HoDDashboard() {
       // Extract department from claims
       const dept = token.claims.department as string;
       if (!dept) {
-        alert("System Error: Department not assigned to this HoD account.");
+        setNotification({
+          open: true,
+          title: "Setup Incomplete",
+          message: "Your department information is missing. Please contact the administrator.",
+          type: "error"
+        });
         router.replace("/");
         return;
       }
@@ -138,7 +177,12 @@ export default function HoDDashboard() {
     }, (error) => {
       console.error("[HoD Dash] projects listener error:", error);
       if (error.code === 'permission-denied') {
-        alert("Permission denied. Try logging out and back in to refresh your HoD status.");
+        setNotification({
+          open: true,
+          title: "Session Expired",
+          message: "Please logout and login again to refresh your session and permissions.",
+          type: "error"
+        });
       }
       setLoading(false);
     });
@@ -241,22 +285,53 @@ export default function HoDDashboard() {
     setCurrentPage(1);
   }, [activeTab, searchQuery]);
 
+  const fetchUsers = async () => {
+    if (!userDept) return;
+    setLoadingUsers(true);
+    try {
+      const resp = await fetch("/api/admin/users");
+      const data = await resp.json();
+      if (data.users) {
+        // Filter: role is faculty AND department matches (case insensitive)
+        setManagedUsers(data.users.filter((u: any) =>
+          u.role === "faculty" &&
+          u.department?.toUpperCase() === userDept.toUpperCase()
+        ));
+      }
+    } catch (err) {
+      console.error("Fetch users error:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showFacultyModal) fetchUsers();
+  }, [showFacultyModal]);
+
   const handleCreateFaculty = async (e: React.FormEvent) => {
     e.preventDefault();
     setFacultyCreationLoading(true);
     setFacultyMessage({ text: "", type: "" });
 
+    const passwordToRecord = newFacultyPassword;
+
     try {
       if (!userDept) throw new Error("Department not found");
 
       // 1. Create User in Auth (Secondary App)
-      const uid = await createSecondaryUser(newFacultyEmail, newFacultyPassword);
+      const uid = await createSecondaryUser(newFacultyEmail, passwordToRecord);
 
       // 2. Set Custom Claims via API
       const response = await fetch("/api/admin/set-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, role: "faculty", department: userDept }),
+        body: JSON.stringify({
+          uid,
+          role: "faculty",
+          department: userDept,
+          password: passwordToRecord // Recording password
+        }),
       });
 
       if (!response.ok) {
@@ -267,12 +342,85 @@ export default function HoDDashboard() {
       setFacultyMessage({ text: "✅ Faculty Account Created Successfully!", type: "success" });
       setNewFacultyEmail("");
       setNewFacultyPassword("");
+      fetchUsers();
     } catch (error: any) {
       console.error("Faculty creation error:", error);
       setFacultyMessage({ text: "❌ " + (error.message || "Failed to create user"), type: "error" });
     } finally {
       setFacultyCreationLoading(false);
     }
+  };
+
+  const handleDeleteUser = async (uid: string) => {
+    setConfirmAction({
+      open: true,
+      title: "Delete Faculty Account?",
+      message: "Are you sure you want to delete this faculty account? This will permanently remove their access to the portal.",
+      onConfirm: async () => {
+        try {
+          const resp = await fetch(`/api/admin/users?uid=${uid}`, { method: "DELETE" });
+          if (resp.ok) {
+            fetchUsers();
+            setNotification({
+              open: true,
+              title: "Account Deleted",
+              message: "The faculty account has been successfully removed.",
+              type: "success"
+            });
+          }
+        } catch (err) {
+          console.error("Delete error:", err);
+          setNotification({
+            open: true,
+            title: "Error",
+            message: "Failed to delete the faculty account.",
+            type: "error"
+          });
+        }
+        setConfirmAction(prev => ({ ...prev, open: false }));
+      }
+    });
+  };
+
+  const togglePassword = (uid: string) => {
+    setShowPasswords(prev => ({ ...prev, [uid]: !prev[uid] }));
+  };
+
+  const handleSetPassword = async (uid: string) => {
+    setInputModal({
+      open: true,
+      title: "Update Password",
+      message: "Set a new password for this faculty member. The changes will be synchronized instantly.",
+      placeholder: "New password",
+      type: "text",
+      onSubmit: async (newPass) => {
+        try {
+          const resp = await fetch("/api/admin/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid, password: newPass })
+          });
+          if (resp.ok) {
+            setNotification({
+              open: true,
+              title: "Success",
+              message: "Password updated and recorded accurately.",
+              type: "success"
+            });
+            fetchUsers();
+          }
+        } catch (err) {
+          console.error("Update password error:", err);
+          setNotification({
+            open: true,
+            title: "Update Failed",
+            message: "Something went wrong while updating the password.",
+            type: "error"
+          });
+        }
+        setInputModal(prev => ({ ...prev, open: false }));
+      }
+    });
   };
 
   /* ===============================
@@ -305,7 +453,7 @@ export default function HoDDashboard() {
             onClick={() => setShowFacultyModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-50 transition shadow-sm font-semibold"
           >
-            <UserPlus size={18} />
+            <MenuIcon size={18} />
             <span>Faculty Management</span>
           </button>
         </div>
@@ -494,88 +642,186 @@ export default function HoDDashboard() {
       }
 
       {/* Faculty Management Modal */}
-      {
-        showFacultyModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full p-8 relative animate-in fade-in zoom-in duration-200">
-              <button
-                onClick={() => {
-                  setShowFacultyModal(false);
-                  setFacultyMessage({ text: "", type: "" });
-                }}
-                className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
+      {showFacultyModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col relative animate-in fade-in zoom-in duration-200">
+            <button
+              onClick={() => {
+                setShowFacultyModal(false);
+                setFacultyMessage({ text: "", type: "" });
+              }}
+              className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600 z-10"
+            >
+              <X size={24} />
+            </button>
 
-              <div className="flex items-center gap-4 mb-8">
+            <div className="p-8 pb-0">
+              <div className="flex items-center gap-4 mb-6">
                 <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
-                  <UserPlus size={24} />
+                  <UserCircle size={24} />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Faculty Management</h2>
-                  <p className="text-sm text-gray-500">Create new faculty account for {userDept}</p>
+                  <p className="text-sm text-gray-500">Manage faculty accounts for {userDept}</p>
                 </div>
               </div>
 
-              <form onSubmit={handleCreateFaculty} className="space-y-6">
-                {facultyMessage.text && (
-                  <div className={`p-4 rounded-xl text-sm font-medium ${facultyMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                    }`}>
-                    {facultyMessage.text}
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Email ID</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="faculty@example.com"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
-                      value={newFacultyEmail}
-                      onChange={(e) => setNewFacultyEmail(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Password</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Enter Password"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
-                      value={newFacultyPassword}
-                      onChange={(e) => setNewFacultyPassword(e.target.value)}
-                    />
-                  </div>
-                </div>
-
+              <div className="flex gap-2 p-1 bg-gray-100 rounded-xl mb-6">
                 <button
-                  type="submit"
-                  disabled={facultyCreationLoading}
-                  className={`w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 shadow-lg ${facultyCreationLoading
-                    ? "bg-blue-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
-                    } flex items-center justify-center gap-2`}
+                  onClick={() => setModalMode("create")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition ${modalMode === "create" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
                 >
-                  {facultyCreationLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Creating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={20} />
-                      <span>Create Faculty Account</span>
-                    </>
-                  )}
+                  <Plus size={16} /> Create New
                 </button>
-              </form>
+                <button
+                  onClick={() => setModalMode("list")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition ${modalMode === "list" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                  <Users size={16} /> Existing Faculty ({managedUsers.length})
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 pt-0">
+              {modalMode === "create" ? (
+                <form onSubmit={handleCreateFaculty} className="space-y-6">
+                  {facultyMessage.text && (
+                    <div className={`p-4 rounded-xl text-sm font-medium ${facultyMessage.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                      }`}>
+                      {facultyMessage.text}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Email ID</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="faculty@example.com"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                        value={newFacultyEmail}
+                        onChange={(e) => setNewFacultyEmail(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Password</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter Password"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-gray-900"
+                        value={newFacultyPassword}
+                        onChange={(e) => setNewFacultyPassword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={facultyCreationLoading}
+                    className={`w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 shadow-lg ${facultyCreationLoading
+                      ? "bg-blue-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
+                      } flex items-center justify-center gap-2`}
+                  >
+                    {facultyCreationLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>Creating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={20} />
+                        <span>Create Faculty Account</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  {loadingUsers ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                      <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-sm font-medium text-gray-500">Loading faculty accounts...</p>
+                    </div>
+                  ) : managedUsers.length === 0 ? (
+                    <div className="text-center py-20 text-gray-500 font-medium">No faculty found in your department.</div>
+                  ) : (
+                    managedUsers.map((user) => (
+                      <div key={user.uid} className="p-4 bg-gray-50 rounded-2xl border border-gray-200 flex items-center justify-between group hover:border-blue-200 transition-all">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-gray-900">{user.email}</p>
+                            <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded uppercase">{user.department}</span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1">
+                            <div className="flex items-center gap-1.5 text-xs font-mono text-gray-600 bg-white px-2 py-1 rounded-lg border border-gray-100">
+                              <Key size={12} className="text-gray-400" />
+                              <span>{showPasswords[user.uid] ? user.password : "••••••••"}</span>
+                              <button
+                                onClick={() => togglePassword(user.uid)}
+                                className="text-blue-500 hover:text-blue-700 ml-1"
+                              >
+                                {showPasswords[user.uid] ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
+                            </div>
+                            {user.isLegacy && (
+                              <button
+                                onClick={() => handleSetPassword(user.uid)}
+                                className="text-[10px] text-orange-500 font-bold uppercase italic hover:underline"
+                              >
+                                Update Password
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteUser(user.uid)}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          title="Delete Account"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
-        )
+        </div>
+      )
       }
+      {/* Modals */}
+      <NotificationModal
+        open={notification.open}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+      />
+
+      <ConfirmModal
+        open={confirmAction.open}
+        title={confirmAction.title}
+        message={confirmAction.message}
+        onConfirm={confirmAction.onConfirm}
+        onCancel={() => setConfirmAction(prev => ({ ...prev, open: false }))}
+        danger={true}
+      />
+
+      <InputModal
+        open={inputModal.open}
+        title={inputModal.title}
+        message={inputModal.message}
+        placeholder={inputModal.placeholder}
+        type={inputModal.type}
+        onSubmit={inputModal.onSubmit}
+        onCancel={() => setInputModal(prev => ({ ...prev, open: false }))}
+      />
     </div >
   );
 }
