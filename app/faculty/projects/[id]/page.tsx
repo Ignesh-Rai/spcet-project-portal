@@ -24,6 +24,7 @@ import {
     RefreshCcw,
     Info
 } from "lucide-react"
+import ReviewMarks from "@/components/ReviewMarks"
 
 export default function FacultyProjectDetails() {
     const params = useParams() as { id?: string }
@@ -254,6 +255,14 @@ export default function FacultyProjectDetails() {
                             )}
                         </div>
                     </section>
+
+                    {/* Project Review Marks */}
+                    <ReviewMarks
+                        projectId={project.id}
+                        students={project.students || []}
+                        existingMarks={project.reviewMarks}
+                        canEdit={auth.currentUser?.uid === project.facultyId}
+                    />
                 </div>
 
                 {/* Right Column: Sidebar */}

@@ -14,7 +14,7 @@ import { updateProject } from "@/lib/db/projects";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, BarChart3, FolderOpen, Clock, Search, UserPlus, Plus, X, Eye, EyeOff, Trash2, Key, Users, MenuIcon, UserCircle } from "lucide-react";
+import { User, BarChart3, FolderOpen, Clock, Search, UserPlus, Plus, X, Eye, EyeOff, Trash2, Key, Users, MenuIcon, UserCircle, FileText, ClipboardList } from "lucide-react";
 import { createSecondaryUser } from "@/lib/admin-auth";
 import NotificationModal from "@/components/ui/NotificationModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -423,6 +423,7 @@ export default function HoDDashboard() {
     });
   };
 
+
   /* ===============================
      AUTH LOADING GATE
      =============================== */
@@ -456,6 +457,15 @@ export default function HoDDashboard() {
             <MenuIcon size={18} />
             <span>Faculty Management</span>
           </button>
+
+          <Link
+            href="/hod/marks"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-md font-semibold"
+            title="View and export departmental marks"
+          >
+            <ClipboardList size={18} />
+            <span>View Marks</span>
+          </Link>
         </div>
       </div>
 

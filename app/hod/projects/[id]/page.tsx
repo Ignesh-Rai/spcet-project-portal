@@ -5,10 +5,11 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { doc, onSnapshot, getDoc } from "firebase/firestore"
 import { db, auth } from "@/lib/firebase"
-import { updateProject } from "@/lib/db/projects"
+import { updateProject, updateProjectMarks } from "@/lib/db/projects"
 import { onAuthStateChanged } from "firebase/auth"
 import { ArrowLeft, CheckCircle2, AlertCircle, Trophy, ExternalLink, Github, FileText, Send, Trash2, Layout } from "lucide-react"
 import NotificationModal from "@/components/ui/NotificationModal"
+import ReviewMarks from "@/components/ReviewMarks"
 
 export default function HoDProjectReview() {
     const params = useParams() as { id?: string }
@@ -341,6 +342,14 @@ export default function HoDProjectReview() {
                             )}
                         </div>
                     </section>
+
+                    {/* Project Review Marks */}
+                    <ReviewMarks
+                        projectId={project.id}
+                        students={project.students || []}
+                        existingMarks={project.reviewMarks}
+                        canEdit={true} // HoD can always edit
+                    />
                 </div>
 
                 {/* Right Column: Sidebar Action & Student Info */}

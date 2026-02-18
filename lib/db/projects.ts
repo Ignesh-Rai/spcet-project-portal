@@ -115,6 +115,23 @@ export async function updateProject(
 }
 
 /**
+ * updateProjectMarks(projectId, reviewMarks)
+ */
+export async function updateProjectMarks(
+  projectId: string,
+  reviewMarks: Record<string, any>
+) {
+  if (!db) throw new Error("Firestore not initialized");
+  const docRef = doc(db, "projects", projectId);
+
+  await updateDoc(docRef, {
+    reviewMarks,
+    updatedAt: serverTimestamp(),
+  });
+  return true;
+}
+
+/**
  * deleteProject(projectId)
  */
 export async function deleteProject(projectId: string) {
