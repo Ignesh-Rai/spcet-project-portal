@@ -337,7 +337,7 @@ function DashboardContent() {
           <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
             <div className="flex -space-x-2">
               {p.students?.slice(0, 3).map((s: any, i: number) => (
-                <div key={i} title={s.name} className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-600">
+                <div key={i} title={`${s.name}${i === 0 ? ' (Team Leader)' : ''}`} className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold bg-blue-100 text-blue-600">
                   {s.name?.charAt(0) || "S"}
                 </div>
               ))}

@@ -205,6 +205,12 @@ export default function HoDProjectReview() {
                     </div>
                     <div className="flex gap-3">
                         <button
+                            onClick={() => router.push(`/hod/projects/${project.id}/edit`)}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-all shadow-md"
+                        >
+                            <FileText size={16} /> Edit Project
+                        </button>
+                        <button
                             onClick={handleHallOfFame}
                             disabled={isSubmitting}
                             className={`p-2 rounded-lg transition-colors border ${project.hallOfFame ? 'bg-yellow-50 border-yellow-200 text-yellow-600' : 'bg-gray-50 border-gray-200 text-gray-500 hover:text-yellow-600'}`}
@@ -357,10 +363,27 @@ export default function HoDProjectReview() {
                     {/* Student Info */}
                     <section className="bg-white rounded-xl border border-blue-400 p-8 shadow-sm">
                         <h3 className="text-xl font-bold text-blue-700 mb-6">Team Details</h3>
+
+                        <div className="mb-6 grid grid-cols-2 gap-4">
+                            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Batch No</p>
+                                <p className="text-gray-900 font-black">{project.batchNo || "N/A"}</p>
+                            </div>
+                            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Guide Name</p>
+                                <p className="text-gray-900 font-black">{project.guideName || project.facultyName || "N/A"}</p>
+                            </div>
+                        </div>
+
                         <div className="space-y-4">
                             {project.students?.filter((s: any) => s.name?.trim()).map((s: any, i: number) => (
                                 <div key={i} className="p-4 bg-gray-50 rounded-lg border border-gray-100 group hover:border-blue-200 transition-all">
-                                    <p className="font-bold text-gray-900">{s.name}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-bold text-gray-900">{s.name}</p>
+                                        {i === 0 && (
+                                            <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">TL</span>
+                                        )}
+                                    </div>
                                     <div className="mt-1 text-xs font-bold text-gray-500 flex flex-wrap gap-x-3 gap-y-1">
                                         <span className="text-blue-600">{s.regNo}</span>
                                         <span>{s.dept}</span>

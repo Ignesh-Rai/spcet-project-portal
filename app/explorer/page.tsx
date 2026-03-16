@@ -3,14 +3,14 @@
 import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { Medal, Grid, Search, FlaskConical } from "lucide-react"
+import { Medal, Grid, Search, FlaskConical, ArrowLeft, ArrowRight } from "lucide-react"
 
 // ✅ IMPORT FIRESTORE FUNCTIONS
 import {
   subscribeToPublicProjects,
 } from "@/lib/db/projects"
 
-const departments = ["All", "CSE", "IT", "AIDS", "CSBS", "ECE", "EEE", "BIOTECH", "MECH", "CIVIL", "CHEM", "MBA"]
+const departments = ["All", "CSE", "IT", "AIDS", "CSBS", "ECE", "EEE", "Biotech", "Mech", "Civil", "Chemical", "MBA"]
 const types = ["All", "College Project", "Product", "Publication"]
 
 function ExplorerContent() {
@@ -76,7 +76,7 @@ function ExplorerContent() {
   // -------------------------------------------------------------
   const filteredProjects = projects.filter((p) => {
     const query = searchQuery.toLowerCase().trim()
-    const deptCodes = ["cse", "it", "ece", "eee", "mech", "civil", "aiml"]
+    const deptCodes = ["cse", "it", "aids", "csbs", "ece", "eee", "biotech", "mech", "civil", "chemical", "mba"]
 
     // If search query is a department code, use whole-word matching to avoid false positives like "it" in "circuit"
     const isDeptQuery = deptCodes.includes(query)
@@ -334,23 +334,25 @@ function ExplorerContent() {
 
         {/* 📌 Pagination Controls */}
         {filteredProjects.length > 0 && totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-8">
+          <div className="flex justify-center items-center gap-4 mt-8">
             <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => p - 1)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
+              className="p-3 bg-white border border-gray-300 rounded-xl text-gray-600 disabled:opacity-30 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm flex items-center justify-center"
+              title="Previous Page"
             >
-              Previous
+              <ArrowLeft size={20} />
             </button>
-            <span className="px-4 py-2 text-gray-700 font-medium">
+            <span className="px-6 py-2 bg-blue-50 text-blue-700 rounded-lg font-bold text-sm border border-blue-100">
               Page {currentPage} of {totalPages}
             </span>
             <button
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(p => p + 1)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition"
+              className="p-3 bg-white border border-gray-300 rounded-xl text-gray-600 disabled:opacity-30 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm flex items-center justify-center"
+              title="Next Page"
             >
-              Next
+              <ArrowRight size={20} />
             </button>
           </div>
         )}

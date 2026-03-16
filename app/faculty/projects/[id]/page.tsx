@@ -287,7 +287,12 @@ export default function FacultyProjectDetails() {
                         <div className="space-y-4">
                             {project.students?.filter((s: any) => s.name?.trim()).map((s: any, i: number) => (
                                 <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:border-blue-200 transition-all">
-                                    <p className="font-bold text-gray-900">{s.name}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-bold text-gray-900">{s.name}</p>
+                                        {i === 0 && (
+                                            <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">TL</span>
+                                        )}
+                                    </div>
                                     <div className="mt-1 text-xs font-bold text-gray-500 flex flex-wrap gap-x-3 gap-y-1">
                                         <span className="text-blue-600">{s.regNo}</span>
                                         <span>{s.dept}</span>
@@ -315,8 +320,18 @@ export default function FacultyProjectDetails() {
                                     <Calendar size={18} />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Academic Year</p>
-                                    <p className="text-sm font-bold text-gray-900">{projectYear}</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Academic Year & Batch</p>
+                                    <p className="text-sm font-bold text-gray-900">{projectYear} • Batch {project.batchNo || "N/A"}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 group">
+                                <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 shrink-0 group-hover:scale-110 transition-transform">
+                                    <User size={18} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Project Guide</p>
+                                    <p className="text-sm font-bold text-gray-900">{project.guideName || project.facultyName || "N/A"}</p>
                                 </div>
                             </div>
 

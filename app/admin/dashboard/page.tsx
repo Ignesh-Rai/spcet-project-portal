@@ -671,10 +671,10 @@ export default function AdminDashboard() {
                                                 <option value="CSBS">CSBS</option>
                                                 <option value="ECE">ECE</option>
                                                 <option value="EEE">EEE</option>
-                                                <option value="BIOTECH">BIOTECH</option>
-                                                <option value="MECH">MECH</option>
-                                                <option value="CIVIL">CIVIL</option>
-                                                <option value="CHEM">CHEM</option>
+                                                <option value="Biotech">Biotech</option>
+                                                <option value="Mech">Mech</option>
+                                                <option value="Civil">Civil</option>
+                                                <option value="Chemical">Chemical</option>
                                                 <option value="MBA">MBA</option>
                                             </select>
                                         </div>

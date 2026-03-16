@@ -50,6 +50,8 @@ function ProjectFormContent() {
   const [journalName, setJournalName] = useState("")
   const [paperLink, setPaperLink] = useState("")
   const [isTitleSame, setIsTitleSame] = useState(false)
+  const [guideName, setGuideName] = useState("")
+  const [batchNo, setBatchNo] = useState("")
 
   const [students, setStudents] = useState<any[]>(
     Array.from({ length: 5 }).map(() => ({
@@ -124,6 +126,8 @@ function ProjectFormContent() {
             if (data.journalName) setJournalName(data.journalName)
             if (data.paperLink) setPaperLink(data.paperLink)
             if (data.isTitleSame) setIsTitleSame(data.isTitleSame)
+            if (data.guideName) setGuideName(data.guideName)
+            if (data.batchNo) setBatchNo(data.batchNo)
 
             addToast("Draft data loaded", "success")
           } else {
@@ -169,7 +173,7 @@ function ProjectFormContent() {
         // Fallback 2: Infer from email
         if (!dept && u.email) {
           const emailLower = u.email.toLowerCase()
-          const deptCodes = ["CSE", "IT", "AIDS", "CSBS", "ECE", "EEE", "BIOTECH", "MECH", "CIVIL", "CHEM", "MBA"]
+          const deptCodes = ["CSE", "IT", "AIDS", "CSBS", "ECE", "EEE", "Biotech", "Mech", "Civil", "Chemical", "MBA"]
           const found = deptCodes.find(code =>
             emailLower.includes(`.${code.toLowerCase()}@`) ||
             emailLower.includes(`@${code.toLowerCase()}.`) ||
@@ -220,6 +224,8 @@ function ProjectFormContent() {
     setDemoLink("")
     setGithubLink("")
     setAbstractText("")
+    setGuideName("")
+    setBatchNo("")
     setTeamSize(2)
     setStudents(Array.from({ length: 5 }).map(() => ({
       name: "", regNo: "", dept: "", year: "", email: "", phone: ""
@@ -602,6 +608,8 @@ function ProjectFormContent() {
       journalName,
       paperLink,
       isTitleSame,
+      guideName,
+      batchNo,
     }
   }
 
@@ -849,10 +857,10 @@ function ProjectFormContent() {
                 <option>CSBS</option>
                 <option>ECE</option>
                 <option>EEE</option>
-                <option>BIOTECH</option>
-                <option>MECH</option>
-                <option>CIVIL</option>
-                <option>CHEM</option>
+                <option>Biotech</option>
+                <option>Mech</option>
+                <option>Civil</option>
+                <option>Chemical</option>
                 <option>MBA</option>
               </select>
             </div>
@@ -883,12 +891,36 @@ function ProjectFormContent() {
               </select>
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label htmlFor="guide-name" className="text-sm font-semibold text-gray-900">Name of the Guide</label>
+              <input
+                id="guide-name"
+                className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Enter guide name"
+                value={guideName}
+                onChange={e => setGuideName(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="batch-no" className="text-sm font-semibold text-gray-900">Batch No</label>
+              <input
+                id="batch-no"
+                className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Enter batch number"
+                value={batchNo}
+                onChange={e => setBatchNo(e.target.value)}
+              />
+            </div>
+
             <div className="flex flex-col gap-2 md:col-span-2">
-              <label htmlFor="tech" className="text-sm font-semibold text-gray-900">Tech Stack</label>
+              <label htmlFor="tech" className="text-sm font-semibold text-gray-900">
+                {department.toUpperCase() === "BIOTECH" ? "Methods Used" : "Technologies Used"}
+              </label>
               <input
                 id="tech"
                 className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="e.g. React, Firebase, Tailwind (separate with commas)"
+                placeholder={department.toUpperCase() === "BIOTECH" ? "e.g. PCR, Gel Electrophoresis" : "e.g. React, Firebase, Tailwind"}
                 value={techStack}
                 onChange={e => setTechStack(e.target.value)}
               />
@@ -1084,7 +1116,7 @@ function ProjectFormContent() {
               <div key={idx} className="p-6 border border-gray-100 rounded-lg bg-gray-50/50 hover:bg-white hover:shadow-md transition-all duration-300">
                 <h3 className="font-bold mb-4 text-gray-700 flex items-center gap-2">
                   <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">{idx + 1}</span>
-                  Student Details
+                  {idx === 0 ? "Team Leader Details" : "Student Details"}
                 </h3>
 
                 <div className="grid md:grid-cols-2 gap-6">
@@ -1122,9 +1154,9 @@ function ProjectFormContent() {
                       }}
                     >
                       <option value="">Select Dept</option>
-                      <option>CSE</option><option>IT</option><option>ECE</option>
-                      <option>EEE</option><option>MECH</option><option>CIVIL</option>
-                      <option>AIDS</option><option>OTHER</option>
+                      <option>CSE</option><option>IT</option><option>AIDS</option><option>CSBS</option>
+                      <option>ECE</option><option>EEE</option><option>Biotech</option><option>Mech</option>
+                      <option>Civil</option><option>Chemical</option><option>MBA</option>
                     </select>
                   </div>
 

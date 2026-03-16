@@ -5,8 +5,8 @@ import Footer from "@/components/Footer"
 
 export const metadata: Metadata = {
   title: "SPCET Project Portal - St. Peter's College of Engineering and Technology",
-  description: "Official project showcase and repository of St. Peter's College of Engineering and Technology (SPCET). Explore innovative engineering projects from CSE, IT, ECE, and CHEM departments.",
-  keywords: ["SPCET", "Project Portal", "St. Peter's College of Engineering", "Engineering Projects", "CSE Projects", "IT Projects", "Avadi", "Chennai", "Anna University Affiliated College"],
+  description: "Official project showcase and repository of St. Peter's College of Engineering and Technology (SPCET). Explore innovative engineering projects from CSE, IT, AIDS, CSBS, ECE, EEE, Biotech, Mech, Civil, Chemical, and MBA departments.",
+  keywords: ["SPCET", "Project Portal", "St. Peter's College of Engineering", "Engineering Projects", "CSE Projects", "IT Projects", "AIDS Projects", "CSBS", "ECE Projects", "EEE Projects", "Biotech", "Mech", "Civil", "Chemical", "MBA", "Avadi", "Chennai", "Anna University Affiliated College"],
   authors: [{ name: "SPCET" }],
   robots: "index, follow",
   icons: {

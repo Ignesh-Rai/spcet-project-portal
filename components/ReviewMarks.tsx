@@ -27,7 +27,7 @@ interface ReviewMarksProps {
 
 export default function ReviewMarks({ projectId, students, existingMarks, canEdit }: ReviewMarksProps) {
     const [marks, setMarks] = useState<Record<string, ReviewData>>(existingMarks || {})
-    const [activeReview, setActiveReview] = useState(1)
+    const [activeReview, setActiveReview] = useState(0)
     const [isSaving, setIsSaving] = useState(false)
     const [expanded, setExpanded] = useState(true)
     const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
@@ -37,7 +37,7 @@ export default function ReviewMarks({ projectId, students, existingMarks, canEdi
         type: "info"
     })
 
-    const reviews = [1, 2, 3, 4, 5, 6]
+    const reviews = [0, 1, 2, 3, 4, 5]
 
     useEffect(() => {
         if (existingMarks) {
@@ -128,7 +128,7 @@ export default function ReviewMarks({ projectId, students, existingMarks, canEdi
                                     : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                                     }`}
                             >
-                                Review {r}
+                                Review - {r}
                             </button>
                         ))}
                     </div>
@@ -148,7 +148,7 @@ export default function ReviewMarks({ projectId, students, existingMarks, canEdi
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-200 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                         <th className="px-4 py-3">Student Details</th>
-                                        <th className="px-4 py-3 text-right">Individual Marks</th>
+                                        <th className="px-4 py-3 text-right">{students.filter(s => s.name?.trim()).length === 1 ? 'Marks' : 'Individual Marks'}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -177,42 +177,31 @@ export default function ReviewMarks({ projectId, students, existingMarks, canEdi
                                             </td>
                                         </tr>
                                     ))}
-                                    <tr className="bg-blue-50/50">
-                                        <td className="px-4 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                                                    <Users size={14} />
+                                    {students.filter(s => s.name?.trim()).length > 1 && (
+                                        <tr className="bg-blue-50/50">
+                                            <td className="px-4 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                                                        <Users size={14} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-blue-900">Team Marks</p>
+                                                        <p className="text-[10px] font-medium text-blue-400">Common for all members</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-blue-900">Team Marks</p>
-                                                    <p className="text-[10px] font-medium text-blue-400">Common for all members</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-4 text-right">
-                                            <input
-                                                type="number"
-                                                disabled={!canEdit}
-                                                value={currentReviewData.teamMarks || ""}
-                                                onChange={(e) => handleTeamMarkChange(activeReview, e.target.value)}
-                                                className="w-24 px-3 py-2 bg-white border border-blue-200 rounded-lg text-right font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
-                                                placeholder="0"
-                                            />
-                                        </td>
-                                    </tr>
-                                    <tr className="bg-blue-600 text-white">
-                                        <td className="px-4 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white">
-                                                    <Calculator size={14} />
-                                                </div>
-                                                <p className="text-sm font-black uppercase tracking-wider">Total Marks</p>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-4 text-right">
-                                            <span className="text-xl font-black">{currentReviewData.totalMarks || 0}</span>
-                                        </td>
-                                    </tr>
+                                            </td>
+                                            <td className="px-4 py-4 text-right">
+                                                <input
+                                                    type="number"
+                                                    disabled={!canEdit}
+                                                    value={currentReviewData.teamMarks || ""}
+                                                    onChange={(e) => handleTeamMarkChange(activeReview, e.target.value)}
+                                                    className="w-24 px-3 py-2 bg-white border border-blue-200 rounded-lg text-right font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
+                                                    placeholder="0"
+                                                />
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
