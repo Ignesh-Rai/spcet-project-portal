@@ -888,6 +888,7 @@ function ProjectFormContent() {
                 <option>Product</option>
                 <option>Publication</option>
                 <option>College Project</option>
+                <option>Patent</option>
               </select>
             </div>
 

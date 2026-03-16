@@ -232,6 +232,7 @@ function HoDEditContent({ projectId }: { projectId: string }) {
                                         <option>College Project</option>
                                         <option>Product</option>
                                         <option>Publication</option>
+                                        <option>Patent</option>
                                     </select>
                                 </div>
                                 <FormInput label="Guide Name" value={guideName} onChange={setGuideName} />

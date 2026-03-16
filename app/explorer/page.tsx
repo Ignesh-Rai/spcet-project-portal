@@ -11,7 +11,7 @@ import {
 } from "@/lib/db/projects"
 
 const departments = ["All", "CSE", "IT", "AIDS", "CSBS", "ECE", "EEE", "Biotech", "Mech", "Civil", "Chemical", "MBA"]
-const types = ["All", "College Project", "Product", "Publication"]
+const types = ["All", "College Project", "Product", "Publication", "Patent"]
 
 function ExplorerContent() {
   const searchParams = useSearchParams()
